@@ -1,0 +1,2 @@
+- create better looking tex sections for mathematical concepts
+- finalize examples with multiplicity (fix graph), instability, and entropy

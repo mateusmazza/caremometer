@@ -1,0 +1,250 @@
+---
+title: "Childcare measures"
+format: revealjs
+editor: visual
+---
+
+# How to measure childcare precarity?
+
+## Research to date
+
+::: incremental
+-   A lot of research has been done on lack of access to reliable childcare.
+
+-   Up to now, most of it has been under the umbrella of "childcare instability" (Lipscomb et al., 2019; Pilarz & Hill, 2017).
+
+-   Commonly investigated elements of childcare instability are:
+
+\- frequent changes in arrangements
+
+\- multiplicity (i.e., patchwork)
+
+\- use of special/back-up arrangements
+:::
+
+## Childcare precarity
+
+::: incremental
+-   Influenced by gender and economics research, studies have recently taken a more socioeconomically informed approach and adopted the concept of **childcare precarity**, defined as insecure or unreliable childcare arrangements while parents work or attend school (Duh Leong et al., 2023).
+
+-   **Childcare precarity** sheds light on structural factors that cause families to experience challenges with childcare.
+
+-   Additionally, precarity focuses on *inadequacy with caregiver work or school schedules* and emcompass more than just instability (e.g., difficulty finding arrangements).
+:::
+
+## Measuring childcare precarity
+
+There is no consensus about how to measure childcare precarity to date.
+
+A lot of previous research has come from FFCWS and used simple indicators such as survey questions:
+
+*"How many times have you changed your childcare arrangements since (CHILD's) first birthday? By changes I mean, for example, that your child got a new babysitter, or started going to a new family child care program or day care center.”*
+
+These are very unreliable and limited in the amount of information they provide.
+
+## Innovations
+
+Informed by the latest research on unpredictability measurement (e.g., Young et al., 2020; Liu & Pollak, *in preparation*), this project aims to create a generalized framework to measure and quantify childcare precarity.
+
+## Measurement approach
+
+-   By leveraging technology in a community-based way, we can design measurement tools that provide us much more accurate and valuable information about families' childcare precarity experiences.
+-   For example, if we have a calendar-like matrix of childcare arrangements: <br>\
+    ![Example of a childcare calendar](calendar%20picture.png){width="600"}
+
+## Data
+
+Our data may look like this:
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Simulate data with caretakers over weeks
+set.seed(123)
+caretakers <- c("Parent1", "Parent2", "Nanny", "Grandparent", "Daycare")
+days <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+time_slots <- c("8 am - 9 am", "9 am - 10 am", "10 am - 11 am", "11 am - 12 pm")
+
+# Simulate data for 4 weeks, 2 children, 5 days, 4 time slots
+simulated_data <- expand.grid(
+  Child_ID = 1:3, 
+  Day = days, 
+  Time_Slot = time_slots, 
+  Week = paste0("Week",1:4)
+)
+
+# Create a function to assign caretakers with varying entropy and multiplicity
+assign_caretakers <- function(child_id) {
+  # Vary the probability distribution for each child to simulate different entropy/multiplicity
+  if (child_id == 1) {
+    caretaker_probs <- c(0.7, 0.2, 0.1, 0, 0) # Low entropy, few distinct caretakers
+  } else if (child_id == 2) {
+    caretaker_probs <- c(0.2, 0.2, 0.2, 0.2, 0.2) # High entropy, many distinct caretakers
+  } else if (child_id == 3) {
+    caretaker_probs <- c(0.1, 0.4, 0.3, 0.3, 0.0) # Not sure
+  }
+  
+  # Sample caretakers based on the probability distribution for each child
+  sample(caretakers, size = 4, replace = TRUE, prob = caretaker_probs)
+}
+
+# Assign caretakers based on child_id, varying entropy/multiplicity
+simulated_data <- simulated_data %>%
+  rowwise() %>%
+  mutate(Caretaker = sample(assign_caretakers(Child_ID), 1)) %>%
+  ungroup()
+
+# View the simulated data
+simulated_data %>% 
+  arrange(Child_ID, Week, Day, Time_Slot)
+
+
+```
+
+# Interesting constructs to be investigated
+
+## Multiplicity
+
+-   We can easily look at multiplicity (i.e., how many different arrangements a child is exposed to):
+
+```{r}
+simulated_data %>% 
+  group_by(Child_ID) %>% 
+  distinct(Caretaker) %>%
+  summarise(Multiplicity = n(), .groups = "drop")
+```
+
+-   We could even look how these evolve across time:
+
+```{r}
+simulated_data %>% 
+  group_by(Child_ID, Week) %>% 
+  distinct(Caretaker) %>%
+  summarise(Multiplicity = n(), .groups = "drop") %>% 
+  
+  ggplot(aes(x=Week, y = Multiplicity, group = as.factor(Child_ID))) +
+  geom_line(aes(color = as.factor(Child_ID)),
+            size = 2) +
+  ylim(2, 8) +
+  guides(color=guide_legend(title="Child"))
+```
+
+Here multiplicity is stable across time because of the simulation.
+
+## Instability Calculation: Mathematical Formulation
+
+We define the following variables:
+
+-   Let ( i ) represent a specific child, where ( i \in {1, 2, \dots, N} ).
+-   Let ( d ) represent a specific day of the week, where ( d \in {1, 2, \dots, D} ).
+-   Let ( t ) represent a specific time slot, where ( t \in {1, 2, \dots, T} ).
+-   Let ( w ) represent a specific week, where ( w \in {1, 2, \dots, W} ).
+-   Let ( C\_{i,d,t,w} ) represent the caretaker assigned to child ( i ) on day ( d ) during time slot ( t ) in week ( w ).
+
+## Transition Indicator
+
+We define the transition indicator ( T\_{i,d,t,w} ) as:
+
+\[ T\_{i,d,t,w} =
+
+\begin{cases} 
+1 & \text{if } C_{i,d,t,w} \neq C_{i,d,t,w-1} \\
+0 & \text{if } C_{i,d,t,w} = C_{i,d,t,w-1}
+\end{cases}
+
+\]
+
+This indicator is 1 if the caretaker changes from week ( w-1 ) to week ( w ), and 0 if the caretaker remains the same.
+
+## Instability for a Given Slot
+
+The instability for child ( i ) on day ( d ) and time slot ( t ) is calculated as the proportion of caretaker transitions over all weeks:
+
+\[ \text{Instability}*{i,d,t} =* \frac{1}{W-1} \sum{w=2}\^{W} T\_{i,d,t,w} \]
+
+This measures the frequency of transitions across weeks for child ( i ) at a given time slot.
+
+## Overall Instability per Child
+
+Finally, the overall instability for child ( i ) is the average instability across all days and time slots:
+
+\[ \text{Overall Instability}*i =* \frac{1}{D \times T} \sum{d=1}\^{D} \sum*{t=1}\^{T}* \left( \frac{1}{W-1} \sum{w=2}\^{W} T\_{i,d,t,w} \right) \]
+
+This provides an aggregate measure of instability for each child across all observed time slots.
+
+```{r}
+# Calculate instability by comparing caretaker assignments across weeks for each child, day, and time slot
+calculate_instability <- function(data) {
+  # Create a lag column to compare each week's caretaker with the previous week's caretaker
+  data <- data %>%
+    group_by(Child_ID, Day, Time_Slot) %>%
+    arrange(Child_ID, Day, Time_Slot, Week) %>%
+    mutate(Caretaker_Lag = lag(Caretaker)) %>%
+    ungroup()
+  
+  # Identify transitions (when the caretaker changes from one week to the next)
+  data <- data %>%
+    mutate(Transition = if_else(Caretaker != Caretaker_Lag, 1, 0, missing = 0))
+  
+  # Calculate instability by counting transitions across weeks for each child, day, and time slot
+  instability_data <- data %>%
+    group_by(Child_ID, Day, Time_Slot) %>%
+    summarise(Instability = sum(Transition) / (n() - 1), .groups = "drop")
+  
+  # Calculate overall instability for each child by averaging the instability across all days and time slots
+  child_instability <- instability_data %>%
+    group_by(Child_ID) %>%
+    summarise(Overall_Instability = mean(Instability), .groups = "drop")
+  
+  # Return the child instability data
+  return(child_instability)
+}
+
+# Apply the instability calculation function to the simulated data
+child_instability_data <- calculate_instability(simulated_data)
+
+# View the results
+child_instability_data
+
+
+```
+
+-   And then we can estimate a lot of interesting constructs that are very relevant for developmental science. - e.g., entropy (a measure of chaos or unpredictability)
+
+```{r}
+# Create a state vector for each Child, Day, and Time Slot
+state_vectors <- simulated_data %>%
+  pivot_wider(names_from = Week, values_from = Caretaker) %>%
+  select(Child_ID, Day, Time_Slot, starts_with("Week"))
+
+# Calculate entropy for each state vector
+calculate_entropy <- function(caretaker_vector) {
+  # Calculate the frequency of each caretaker
+  caretaker_freq <- table(caretaker_vector)
+  prob <- caretaker_freq / sum(caretaker_freq)
+  # Shannon entropy formula
+  -sum(prob * log(prob), na.rm = TRUE)
+}
+
+# Apply entropy calculation
+entropy_values <- state_vectors %>%
+  rowwise() %>%
+  mutate(Entropy = calculate_entropy(c_across(starts_with("Week")))) %>%
+  ungroup()
+
+# View results
+entropy_values %>% 
+  group_by(Child_ID) %>% 
+  summarise(
+    Entropy = mean(Entropy)
+  )
+
+```
+
+All are very high entropy as we generated the arrangements randomly.
+
+-   
+
+notes: instability (in precarity) refers to stationary unpredictability instability and multiplicity both can fit the ancestral cue and statistical learning approaches multiplicity maybe more ancestral cue? instability maybe more statistical learning?
