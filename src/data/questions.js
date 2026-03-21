@@ -2,7 +2,7 @@
  * All survey question definitions for the Childcare Precarity Assessment Tool.
  * Each question has: id, section, type, label, options (if applicable), required.
  *
- * Types: 'single' | 'multi' | 'scale' | 'text' | 'number' | 'dropdown'
+ * Types: 'single' | 'multi' | 'scale' | 'text' | 'number' | 'dropdown' | 'date'
  * Placeholder questions are clearly labeled as such so they can be replaced
  * with validated instruments later.
  */
@@ -56,21 +56,28 @@ export const CBCL = [
 
 export const demographicsQuestions = [
   {
-    id: 'child_age',
-    label: 'How old is your youngest child?',
-    type: 'dropdown',
+    id: 'relationship_to_child',
+    label: 'What is your relationship to the child you are enrolling in the study?',
+    type: 'single',
     required: true,
     options: [
-      { value: 'under_1', label: 'Under 1 year' },
-      { value: '1', label: '1 year' },
-      { value: '2', label: '2 years' },
-      { value: '3', label: '3 years' },
-      { value: '4', label: '4 years' },
-      { value: '5', label: '5 years' },
-      { value: '6_to_8', label: '6–8 years' },
-      { value: '9_to_12', label: '9–12 years' },
-      { value: '13_plus', label: '13 or older' },
+      { value: 'biological_mother',  label: 'Biological mother' },
+      { value: 'biological_father',  label: 'Biological father' },
+      { value: 'adoptive_mother',    label: 'Adoptive mother' },
+      { value: 'adoptive_father',    label: 'Adoptive father' },
+      { value: 'stepmother',         label: 'Stepmother' },
+      { value: 'stepfather',         label: 'Stepfather' },
+      { value: 'grandparent',        label: 'Grandparent' },
+      { value: 'foster_parent',      label: 'Foster parent' },
+      { value: 'other',              label: 'Other caregiver or guardian' },
     ],
+  },
+  {
+    id: 'child_dob',
+    label: "What is your child's date of birth?",
+    type: 'date',
+    required: true,
+    hint: "Used to calculate your child's age at the time of enrollment.",
   },
   {
     id: 'child_gender',
@@ -365,7 +372,7 @@ export const reasonableEffortQuestions = [
     required: false,
     options: [
       { value: 'yes', label: 'Yes' },
-      { value: 'no', label: 'No than 1 month' }
+      { value: 'no', label: 'No' }
     ],
   }
 ]
@@ -533,7 +540,7 @@ export const childEmotionalQuestions = [
   },
   {
     id: 'externalizing',
-    label: '[ADAPT] Fussy or definant',
+    label: '[ADAPT] Fussy or defiant',
     placeholder: true,
     type: 'scale',
     required: false,
@@ -698,7 +705,7 @@ export const weeklyCheckinQuestions = [
   },
   {
     id: 'externalizing',
-    label: '[ADAPT] Fussy or definant',
+    label: '[ADAPT] Fussy or defiant',
     placeholder: true,
     type: 'scale',
     required: false,

@@ -139,9 +139,10 @@ export default function WeeklyCheckin() {
         {step === 0 && (
           <div>
             <div className="card card--blue" style={{ marginBottom: '1.25rem' }}>
-              <strong>Instructions:</strong> Click or drag on the calendar to paint which provider
-              cared for your child during each hour. Use the color legend to switch between providers.
-              Right-click or select the Eraser to clear a cell.
+              <strong>Instructions:</strong> Tap or drag on the calendar to paint which provider
+              cared for your child during each hour. Use the color legend below to switch providers.
+              Tap a filled cell again, or select the Eraser, to clear it. On desktop you can also click and drag.
+              Scroll the calendar left/right if needed.
             </div>
 
             {/* Provider change check */}

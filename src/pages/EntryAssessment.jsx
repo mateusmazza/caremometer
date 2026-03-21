@@ -188,7 +188,9 @@ export default function EntryAssessment() {
         {step === 1 && (
           <div>
             <div className="alert alert--info" style={{ marginBottom: '1.25rem' }}>
-              List all the people or places that regularly care for your child while you work or attend school.
+              List all the people or places that regularly care for your child, including yourself, your partner, and other relatives,
+              as well as childcare facilities or centers, babysitters, and so on. You should also include a "None" option in case your child
+              happens to be left alone sometimes because there is no available caretaker at the moment. 
               You'll use these to fill in the weekly calendar.
             </div>
             {providers.map((p, i) => (

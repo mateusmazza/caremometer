@@ -99,6 +99,27 @@ a:hover { text-decoration: underline; }
 .stepper__line { width: 48px; height: 2px; background: var(--gray-200); margin: 0 2px; }
 .stepper__line--complete { background: var(--green); }
 
+/* Desktop: show dots, hide bar */
+.stepper--dots { display: flex; }
+.stepper--bar  { display: none; }
+
+/* Mobile progress bar (shown via media query below) */
+.stepper--bar { flex-direction: column; padding: .75rem 0 .25rem; }
+.stepper__bar-track {
+  height: 7px; background: var(--gray-200); border-radius: 999px;
+  overflow: hidden; width: 100%; margin-bottom: .4rem;
+}
+.stepper__bar-fill {
+  height: 100%; background: var(--blue); border-radius: 999px;
+  transition: width .3s ease;
+}
+.stepper__bar-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: .8125rem; color: var(--gray-500);
+}
+.stepper__bar-step-name { font-weight: 600; color: var(--gray-700); }
+.stepper__bar-count     { font-variant-numeric: tabular-nums; }
+
 /* ── Cards ────────────────────────────────────────────────────────────────── */
 .card {
   background: var(--white); border: 1px solid var(--gray-200);
@@ -327,11 +348,125 @@ a:hover { text-decoration: underline; }
 .font-bold { font-weight: 700; }
 
 /* ── Responsive ───────────────────────────────────────────────────────────── */
+
+/* ── Mobile (≤ 640px) ─────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .hero__title { font-size: 1.625rem; }
-  .page__title { font-size: 1.375rem; }
-  .scale-options { gap: .25rem; }
-  .scale-option { min-width: 40px; padding: .375rem .125rem; }
-  .btn--lg { padding: .75rem 1.5rem; }
-  .stepper__line { width: 28px; }
+
+  /* Typography */
+  .hero__title    { font-size: 1.5rem; }
+  .hero__subtitle { font-size: .9375rem; }
+  .page__title    { font-size: 1.25rem; }
+  .page__subtitle { font-size: .875rem; margin-bottom: 1.25rem; }
+
+  /* Container — comfortable side padding */
+  .container { padding: 0 1rem; }
+  .page       { padding: 1.5rem 0 3rem; }
+
+  /* ── iOS auto-zoom prevention ──────────────────────────────────────────── */
+  /* iOS Safari zooms in when an input's font-size < 16px.                   */
+  /* Setting font-size to 1rem (16px) prevents this behaviour.               */
+  .form-input,
+  .form-select,
+  .form-textarea,
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="date"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+
+  /* Larger touch targets for form controls */
+  .form-input,
+  .form-select {
+    padding: .75rem .875rem;
+    min-height: 48px;
+  }
+
+  /* ── Stepper: hide dots, show progress bar ─────────────────────────────── */
+  .stepper--dots { display: none; }
+  .stepper--bar  { display: flex; }
+
+  /* ── Choice items — minimum 48px touch target ──────────────────────────── */
+  .choice-item {
+    min-height: 48px;
+    padding: .625rem .875rem;
+    align-items: center;
+  }
+
+  /* ── Scale / Likert ─────────────────────────────────────────────────────── */
+  .scale-options  { gap: .25rem; }
+  .scale-option   {
+    min-width: 44px;
+    min-height: 56px;
+    padding: .5rem .125rem;
+    font-size: .75rem;
+  }
+  .scale-option__value { font-size: .9375rem; }
+  .scale-option__label { font-size: .6rem; }
+
+  /* ── Buttons ────────────────────────────────────────────────────────────── */
+  .btn        { min-height: 48px; }
+  .btn--lg    { padding: .875rem 1.5rem; font-size: .9375rem; }
+  .btn--sm    { min-height: 40px; }
+
+  /* Navigation button rows: stack vertically, full width */
+  .btn-row {
+    flex-direction: column-reverse;
+    gap: .625rem;
+  }
+  .btn-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  /* Keep the secondary "Back" button visually secondary but same width */
+  .btn-row--spread { flex-direction: column-reverse; }
+  .btn-row--right  { flex-direction: column; }
+
+  /* ── Cards ──────────────────────────────────────────────────────────────── */
+  .card { padding: 1rem; }
+
+  /* ── Header ─────────────────────────────────────────────────────────────── */
+  .header__logo     { font-size: .875rem; }
+  .header__logo-icon { width: 24px; height: 24px; font-size: .75rem; }
+  .header__nav      { gap: .625rem; }
+  .header__nav a,
+  .header__nav button { font-size: .8125rem; }
+
+  /* ── Hero ───────────────────────────────────────────────────────────────── */
+  .hero { padding: 2.5rem 1rem 2rem; }
+  .hero__actions { flex-direction: column; align-items: stretch; }
+  .hero__actions .btn { text-align: center; }
+
+  /* ── Calendar ───────────────────────────────────────────────────────────── */
+  /* The calendar has min-width: 520px and scrolls horizontally — correct.   */
+  /* Increase cell height slightly for touch painting.                        */
+  .calendar-cell { height: 34px; }
+  .calendar-time-label { height: 34px; font-size: .6rem; }
+  .calendar-day-header { font-size: .7rem; padding: .375rem .125rem; }
+  .calendar-day-header__date { font-size: .6rem; }
+
+  /* ── Legend ─────────────────────────────────────────────────────────────── */
+  .legend-item { padding: .4375rem .875rem; font-size: .8125rem; min-height: 40px; }
+
+  /* ── Provider cards ─────────────────────────────────────────────────────── */
+  .provider-card { padding: .875rem; }
+
+  /* ── Section titles ─────────────────────────────────────────────────────── */
+  .section__title { font-size: 1rem; }
+
+  /* ── Number inputs — don't clip on small screens ───────────────────────── */
+  input[type="number"].form-input { max-width: 100% !important; width: 100%; }
+
+  /* ── Date inputs ────────────────────────────────────────────────────────── */
+  input[type="date"].form-input { max-width: 100% !important; width: 100%; }
+}
+
+/* ── Very small screens (≤ 380px) ─────────────────────────────────────────── */
+@media (max-width: 380px) {
+  .hero__title { font-size: 1.25rem; }
+  .scale-option { min-width: 38px; }
+  .header__logo-text { display: none; } /* hide text, keep icon if needed */
 }

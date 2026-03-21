@@ -8,16 +8,19 @@
  */
 export default function SurveyQuestion({ question, value, onChange }) {
   const { id, label, type, options, placeholder, required,
-          min, max, maxLength } = question
+          min, max, maxLength, hint } = question
 
   const isPlaceholder = question.placeholder === true
 
   const labelEl = (
-    <label className="form-label" htmlFor={id}>
-      {isPlaceholder && <span className="placeholder-badge">Placeholder</span>}
-      {label}
-      {required && <span style={{ color: 'var(--red)', marginLeft: '.2rem' }}>*</span>}
-    </label>
+    <>
+      <label className="form-label" htmlFor={id}>
+        {isPlaceholder && <span className="placeholder-badge">Placeholder</span>}
+        {label}
+        {required && <span style={{ color: 'var(--red)', marginLeft: '.2rem' }}>*</span>}
+      </label>
+      {hint && <p className="form-hint">{hint}</p>}
+    </>
   )
 
   // ── Single choice (radio) ──────────────────────────────────────────────────
@@ -150,7 +153,29 @@ export default function SurveyQuestion({ question, value, onChange }) {
           placeholder={placeholder || ''}
           min={min}
           max={max}
-          style={{ maxWidth: '160px' }}
+          style={{ maxWidth: '200px' }}
+        />
+      </div>
+    )
+  }
+
+  // ── Date input ─────────────────────────────────────────────────────────────
+  if (type === 'date') {
+    const today = new Date().toISOString().slice(0, 10)
+    // Reasonable minimum: 20 years ago (for older children up to ~18)
+    const minDate = new Date(Date.now() - 20 * 365.25 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+    return (
+      <div className="form-group">
+        {labelEl}
+        <input
+          id={id}
+          type="date"
+          className="form-input"
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          max={today}
+          min={minDate}
+          style={{ maxWidth: '220px' }}
         />
       </div>
     )

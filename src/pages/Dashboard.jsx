@@ -143,7 +143,7 @@ function DashboardContent() {
       </div>
 
       {/* Participant detail */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '1.5rem', alignItems: 'start' }}>
         <div className="card">
           <h3 className="section__title">Participant Info</h3>
           <table style={{ fontSize: '.875rem', width: '100%', borderCollapse: 'collapse' }}>
