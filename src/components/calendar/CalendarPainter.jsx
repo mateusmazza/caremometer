@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { Fragment, useState, useRef, useEffect } from 'react'
 import ProviderLegend from './ProviderLegend'
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6)  // 6..22
@@ -31,7 +31,7 @@ function isToday(dateStr) {
 export default function CalendarPainter({ days, providers, data, onChange, readOnly = false }) {
   const [selectedTool, setSelectedTool] = useState(providers[0]?.id || null)
   const isPainting = useRef(false)
-  const gridRef = useRef(null)
+  const activePointerId = useRef(null)
 
   // Sync selected tool if providers change (e.g. first load)
   useEffect(() => {
@@ -47,6 +47,7 @@ export default function CalendarPainter({ days, providers, data, onChange, readO
   function paintCell(date, hour) {
     if (readOnly) return
     const value = selectedTool === 'eraser' ? null : selectedTool
+    if (data?.[date]?.[hour] === value) return
     const newData = {
       ...data,
       [date]: {
@@ -57,32 +58,9 @@ export default function CalendarPainter({ days, providers, data, onChange, readO
     onChange(newData)
   }
 
-  // ── Mouse events ────────────────────────────────────────────────────────────
-
-  function handleMouseDown(date, hour, e) {
-    if (e.button !== 0) return
-    e.preventDefault()
-    isPainting.current = true
-    paintCell(date, hour)
-  }
-
-  function handleMouseEnter(date, hour) {
-    if (isPainting.current) paintCell(date, hour)
-  }
-
-  function handleMouseUp() {
-    isPainting.current = false
-  }
-
-  useEffect(() => {
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => window.removeEventListener('mouseup', handleMouseUp)
-  }, [])
-
-  // ── Touch events ─────────────────────────────────────────────────────────────
+  // ── Pointer events ──────────────────────────────────────────────────────────
 
   function getCellFromPoint(x, y) {
-    if (!gridRef.current) return null
     const el = document.elementFromPoint(x, y)
     if (!el) return null
     const cell = el.closest('[data-date][data-hour]')
@@ -90,25 +68,41 @@ export default function CalendarPainter({ days, providers, data, onChange, readO
     return { date: cell.dataset.date, hour: Number(cell.dataset.hour) }
   }
 
-  function handleTouchStart(e) {
-    if (readOnly) return
-    isPainting.current = true
-    const t = e.touches[0]
-    const cell = getCellFromPoint(t.clientX, t.clientY)
-    if (cell) paintCell(cell.date, cell.hour)
-  }
-
-  function handleTouchMove(e) {
-    if (!isPainting.current || readOnly) return
-    e.preventDefault()
-    const t = e.touches[0]
-    const cell = getCellFromPoint(t.clientX, t.clientY)
-    if (cell) paintCell(cell.date, cell.hour)
-  }
-
-  function handleTouchEnd() {
+  function stopPainting(pointerId) {
+    if (pointerId !== undefined && activePointerId.current !== null && pointerId !== activePointerId.current) return
     isPainting.current = false
+    activePointerId.current = null
   }
+
+  function handlePointerDown(date, hour, e) {
+    if (readOnly) return
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.preventDefault()
+    isPainting.current = true
+    activePointerId.current = e.pointerId
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    paintCell(date, hour)
+  }
+
+  function handlePointerMove(e) {
+    if (!isPainting.current || readOnly) return
+    if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return
+    const cell = getCellFromPoint(e.clientX, e.clientY)
+    if (cell) paintCell(cell.date, cell.hour)
+  }
+
+  useEffect(() => {
+    function handleWindowPointerUp(e) {
+      stopPainting(e.pointerId)
+    }
+
+    window.addEventListener('pointerup', handleWindowPointerUp)
+    window.addEventListener('pointercancel', handleWindowPointerUp)
+    return () => {
+      window.removeEventListener('pointerup', handleWindowPointerUp)
+      window.removeEventListener('pointercancel', handleWindowPointerUp)
+    }
+  }, [])
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -132,13 +126,11 @@ export default function CalendarPainter({ days, providers, data, onChange, readO
       )}
 
       <div className="calendar-wrap" style={{ marginTop: readOnly ? 0 : '1rem' }}>
-        <div className="calendar-grid" ref={gridRef}>
+        <div className="calendar-grid">
           <div
-            className="calendar-inner"
+            className={`calendar-inner${readOnly ? '' : ' calendar-inner--interactive'}`}
             style={{ display: 'grid', gridTemplateColumns }}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
+            onPointerMove={handlePointerMove}
           >
             {/* Header row */}
             <div className="calendar-time-label" style={{ borderBottom: '2px solid var(--gray-200)', height: 'auto', padding: '.5rem .375rem', fontWeight: 600, color: 'var(--gray-500)', fontSize: '.7rem' }}>
@@ -158,7 +150,7 @@ export default function CalendarPainter({ days, providers, data, onChange, readO
 
             {/* Data rows */}
             {HOURS.map(hour => (
-              <>
+              <Fragment key={hour}>
                 <div key={`label-${hour}`} className="calendar-time-label">
                   {formatHour(hour)}
                 </div>
@@ -172,13 +164,14 @@ export default function CalendarPainter({ days, providers, data, onChange, readO
                       data-hour={hour}
                       className={`calendar-cell${!providerId ? ' calendar-cell--empty' : ''}`}
                       style={{ backgroundColor: provider?.color || undefined }}
-                      onMouseDown={(e) => handleMouseDown(date, hour, e)}
-                      onMouseEnter={() => handleMouseEnter(date, hour)}
+                      onPointerDown={(e) => handlePointerDown(date, hour, e)}
+                      onPointerUp={(e) => stopPainting(e.pointerId)}
+                      onPointerCancel={(e) => stopPainting(e.pointerId)}
                       title={provider ? `${provider.name} — ${formatDate(date)} ${formatHour(hour)}` : `${formatDate(date)} ${formatHour(hour)}`}
                     />
                   )
                 })}
-              </>
+              </Fragment>
             ))}
           </div>
         </div>
