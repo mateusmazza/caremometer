@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useApp } from '../context/AppContext'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import ProgressStepper from '../components/layout/ProgressStepper'
-import SurveyQuestion from '../components/survey/SurveyQuestion'
+import SurveyQuestion  from '../components/survey/SurveyQuestion'
 import {
   demographicsQuestions,
   affordabilityQuestions,
@@ -17,11 +16,19 @@ import {
   PROVIDER_COLORS,
 } from '../data/questions'
 import {
+  getParticipant,
+  createParticipant,
   saveEntryAssessmentSection,
   saveProviders,
   completeEntryAssessment,
-  getParticipant,
 } from '../utils/storage'
+
+/**
+ * Entry Assessment (Instrument 1)
+ *
+ * Expected URL: /entry?pid=P001
+ * Redirects to /consent?pid=P001 if consent has not been given yet.
+ */
 
 const STEPS = [
   'Demographics',
@@ -29,7 +36,7 @@ const STEPS = [
   'Affordability',
   'Access & Effort',
   'Child Development',
-  "Meets Your Needs",
+  'Meets Your Needs',
   'Parent Well-being',
   'Child Well-being',
   'Parent Cognition',
@@ -37,23 +44,20 @@ const STEPS = [
   'Review & Submit',
 ]
 
-// ── Blank provider template ────────────────────────────────────────────────────
 function newProvider(index) {
   return {
-    id: `prov_${Date.now()}_${index}`,
-    name: '',
-    type: '',
+    id:    `prov_${Date.now()}_${index}`,
+    name:  '',
+    type:  '',
     color: PROVIDER_COLORS[index % PROVIDER_COLORS.length],
   }
 }
 
-// ── Reusable section renderer ──────────────────────────────────────────────────
 function SurveySection({ questions, answers, setAnswers, filterConditional }) {
   const visible = filterConditional
     ? questions.filter(q => {
         if (!q.conditional) return true
-        const dep = answers[q.conditional.id]
-        return dep === q.conditional.value
+        return answers[q.conditional.id] === q.conditional.value
       })
     : questions
 
@@ -72,69 +76,85 @@ function SurveySection({ questions, answers, setAnswers, filterConditional }) {
 }
 
 export default function EntryAssessment() {
-  const { participant, refreshParticipant } = useApp()
-  const navigate = useNavigate()
+  const navigate       = useNavigate()
+  const [params]       = useSearchParams()
+  const pid            = params.get('pid')
 
-  const [step, setStep] = useState(0)
-  const [demographics, setDemographics] = useState({})
-  const [providers, setProviders] = useState([newProvider(0)])
-  const [affordability, setAffordability] = useState({})
-  const [effort, setEffort] = useState({})
-  const [childDev, setChildDev] = useState({})    // per-provider answers keyed by provider id
-  const [meetsNeeds, setMeetsNeeds] = useState({})
+  const [step, setStep]                     = useState(0)
+  const [demographics, setDemographics]     = useState({})
+  const [providers, setProviders]           = useState([newProvider(0)])
+  const [affordability, setAffordability]   = useState({})
+  const [effort, setEffort]                 = useState({})
+  const [childDev, setChildDev]             = useState({})
+  const [meetsNeeds, setMeetsNeeds]         = useState({})
   const [parentEmotional, setParentEmotional] = useState({})
   const [childEmotional, setChildEmotional] = useState({})
   const [parentCognition, setParentCognition] = useState({})
   const [childCognition, setChildCognition] = useState({})
 
+  // Guard — missing pid
+  if (!pid) {
+    return (
+      <div className="container page">
+        <div className="no-pid">
+          <p className="no-pid__title">No participant link found</p>
+          <p className="no-pid__body">
+            Please use the personal study link provided by the research team.
+            If you need help, contact{' '}
+            <a href="mailto:mmmazzaferro@gmail.com">the research team</a>.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   useEffect(() => {
-    if (!participant) { navigate('/login'); return }
-    if (!participant.consentGiven) { navigate('/consent'); return }
+    // Auto-create participant if needed
+    let p = getParticipant(pid)
+    if (!p) p = createParticipant(pid)
+
+    // Redirect to consent if not yet given
+    if (!p.consentGiven) {
+      navigate(`/consent?pid=${pid}`)
+      return
+    }
 
     // Rehydrate saved answers
-    const entry = participant.entryAssessment || {}
+    const entry = p.entryAssessment || {}
     if (entry.demographics) setDemographics(entry.demographics)
-    if (participant.providers?.length) setProviders(participant.providers)
+    if (p.providers?.length) setProviders(p.providers)
     if (entry.affordability) setAffordability(entry.affordability)
-    if (entry.effort) setEffort(entry.effort)
-    if (entry.childDev) setChildDev(entry.childDev)
-    if (entry.meetsNeeds) setMeetsNeeds(entry.meetsNeeds)
+    if (entry.effort)        setEffort(entry.effort)
+    if (entry.childDev)      setChildDev(entry.childDev)
+    if (entry.meetsNeeds)    setMeetsNeeds(entry.meetsNeeds)
     if (entry.parentEmotional) setParentEmotional(entry.parentEmotional)
-    if (entry.childEmotional) setChildEmotional(entry.childEmotional)
+    if (entry.childEmotional)  setChildEmotional(entry.childEmotional)
     if (entry.parentCognition) setParentCognition(entry.parentCognition)
-    if (entry.childCognition) setChildCognition(entry.childCognition)
-  }, [])
+    if (entry.childCognition)  setChildCognition(entry.childCognition)
+  }, [pid])
 
-  // ── Provider management ────────────────────────────────────────────────────
+  // ── Provider management ──────────────────────────────────────────────────
 
-  function addProvider() {
-    setProviders(prev => [...prev, newProvider(prev.length)])
-  }
+  function addProvider()              { setProviders(prev => [...prev, newProvider(prev.length)]) }
+  function updateProvider(id, f, v)   { setProviders(prev => prev.map(p => p.id === id ? { ...p, [f]: v } : p)) }
+  function removeProvider(id)         { setProviders(prev => prev.length > 1 ? prev.filter(p => p.id !== id) : prev) }
 
-  function updateProvider(id, field, value) {
-    setProviders(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
-  }
-
-  function removeProvider(id) {
-    setProviders(prev => prev.length > 1 ? prev.filter(p => p.id !== id) : prev)
-  }
-
-  // ── Autosave on each step advance ──────────────────────────────────────────
+  // ── Autosave ─────────────────────────────────────────────────────────────
 
   function saveCurrentStep() {
     switch (step) {
-      case 0: saveEntryAssessmentSection('demographics', demographics); break
-      case 1: saveProviders(providers); break
-      case 2: saveEntryAssessmentSection('affordability', affordability); break
-      case 3: saveEntryAssessmentSection('effort', effort); break
-      case 4: saveEntryAssessmentSection('childDev', childDev); break
-      case 5: saveEntryAssessmentSection('meetsNeeds', meetsNeeds); break
-      case 6: saveEntryAssessmentSection('parentEmotional', parentEmotional); break
-      case 7: saveEntryAssessmentSection('childEmotional', childEmotional); break
-      case 8: saveEntryAssessmentSection('parentCognition', parentCognition); break
-      case 9: saveEntryAssessmentSection('childCognition', childCognition); break
+      case 0:  saveEntryAssessmentSection(pid, 'demographics',    demographics);    break
+      case 1:  saveProviders(pid, providers);                                        break
+      case 2:  saveEntryAssessmentSection(pid, 'affordability',   affordability);   break
+      case 3:  saveEntryAssessmentSection(pid, 'effort',          effort);          break
+      case 4:  saveEntryAssessmentSection(pid, 'childDev',        childDev);        break
+      case 5:  saveEntryAssessmentSection(pid, 'meetsNeeds',      meetsNeeds);      break
+      case 6:  saveEntryAssessmentSection(pid, 'parentEmotional', parentEmotional); break
+      case 7:  saveEntryAssessmentSection(pid, 'childEmotional',  childEmotional);  break
+      case 8:  saveEntryAssessmentSection(pid, 'parentCognition', parentCognition); break
+      case 9:  saveEntryAssessmentSection(pid, 'childCognition',  childCognition);  break
+      default: break
     }
-    refreshParticipant()
   }
 
   function goNext() {
@@ -151,29 +171,36 @@ export default function EntryAssessment() {
 
   function handleSubmit() {
     saveCurrentStep()
-    completeEntryAssessment()
-    refreshParticipant()
-    navigate('/thank-you?type=entry')
+    completeEntryAssessment(pid)
+    navigate(`/thank-you?type=entry&pid=${pid}`)
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────
 
   const validProviders = providers.filter(p => p.name.trim())
 
   return (
     <div className="container page">
+      <div className="instrument-badge">
+        <span className="instrument-badge__dot" />
+        Instrument 1 of 3 — Enrollment Survey
+      </div>
+
       <h1 className="page__title">Enrollment Survey</h1>
-      <p className="page__subtitle">Step {step + 1} of {STEPS.length}: <strong>{STEPS[step]}</strong></p>
+      <p className="page__subtitle">
+        Step {step + 1} of {STEPS.length}: <strong>{STEPS[step]}</strong>
+      </p>
 
       <ProgressStepper steps={STEPS} current={step} />
 
       <div style={{ marginTop: '1.75rem' }}>
 
-        {/* ── Step 0: Demographics ──────────────────────────────────────────── */}
+        {/* Step 0: Demographics */}
         {step === 0 && (
           <div>
-            <div className="alert alert--info" style={{ marginBottom: '1.25rem' }}>
-              All questions are optional unless marked with an asterisk (*). You may skip any question you prefer not to answer.
+            <div className="alert alert--info">
+              All questions are optional unless marked with an asterisk (*).
+              You may skip any question you prefer not to answer.
             </div>
             <SurveySection
               questions={demographicsQuestions}
@@ -184,21 +211,20 @@ export default function EntryAssessment() {
           </div>
         )}
 
-        {/* ── Step 1: Provider Roster ───────────────────────────────────────── */}
+        {/* Step 1: Provider Roster */}
         {step === 1 && (
           <div>
-            <div className="alert alert--info" style={{ marginBottom: '1.25rem' }}>
-              List all the people or places that regularly care for your child, including yourself, your partner, and other relatives,
-              as well as childcare facilities or centers, babysitters, and so on. You should also include a "None" option in case your child
-              happens to be left alone sometimes because there is no available caretaker at the moment. 
-              You'll use these to fill in the weekly calendar.
+            <div className="alert alert--info">
+              List everyone who regularly cares for your child — family members,
+              childcare centers, babysitters, and yourself. You'll use these to
+              fill in the weekly calendar.
             </div>
             {providers.map((p, i) => (
               <div key={p.id} className="provider-card">
                 <div className="provider-card__header">
                   <div className="flex items-center" style={{ gap: '.5rem' }}>
                     <span className="provider-color-dot" style={{ backgroundColor: p.color }} />
-                    <strong style={{ fontSize: '.9375rem' }}>Provider {i + 1}</strong>
+                    <strong style={{ fontSize: '.875rem', color: 'var(--ink-1)' }}>Provider {i + 1}</strong>
                   </div>
                   {providers.length > 1 && (
                     <button
@@ -213,7 +239,9 @@ export default function EntryAssessment() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Provider name or label <span style={{ color: 'var(--red)' }}>*</span></label>
+                  <label className="form-label">
+                    Provider name or label <span style={{ color: 'var(--red)' }}>*</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input"
@@ -237,18 +265,19 @@ export default function EntryAssessment() {
                   </select>
                 </div>
 
-                <div className="form-group">
+                <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Color on your calendar</label>
-                  <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '.375rem', flexWrap: 'wrap' }}>
                     {PROVIDER_COLORS.map(c => (
                       <button
                         key={c}
                         type="button"
                         onClick={() => updateProvider(p.id, 'color', c)}
                         style={{
-                          width: 28, height: 28, borderRadius: '50%',
-                          backgroundColor: c, border: p.color === c ? '3px solid #0f172a' : '2px solid transparent',
-                          cursor: 'pointer',
+                          width: 26, height: 26, borderRadius: '50%',
+                          backgroundColor: c,
+                          border: p.color === c ? '3px solid var(--ink-1)' : '2px solid transparent',
+                          cursor: 'pointer', transition: 'border-color .12s',
                         }}
                         title={c}
                       />
@@ -260,7 +289,7 @@ export default function EntryAssessment() {
 
             <button
               type="button"
-              className="btn btn--secondary"
+              className="btn btn--secondary btn--sm"
               onClick={addProvider}
               style={{ marginTop: '.5rem' }}
             >
@@ -269,7 +298,7 @@ export default function EntryAssessment() {
           </div>
         )}
 
-        {/* ── Step 2: Affordability ─────────────────────────────────────────── */}
+        {/* Step 2: Affordability */}
         {step === 2 && (
           <SurveySection
             questions={affordabilityQuestions}
@@ -279,7 +308,7 @@ export default function EntryAssessment() {
           />
         )}
 
-        {/* ── Step 3: Reasonable Effort ─────────────────────────────────────── */}
+        {/* Step 3: Reasonable Effort */}
         {step === 3 && (
           <SurveySection
             questions={reasonableEffortQuestions}
@@ -288,14 +317,14 @@ export default function EntryAssessment() {
           />
         )}
 
-        {/* ── Step 4: Supports Child Development (per provider) ─────────────── */}
+        {/* Step 4: Child Development (per provider) */}
         {step === 4 && (
           <div>
-            <div className="alert alert--info" style={{ marginBottom: '1.25rem' }}>
+            <div className="alert alert--info">
               The following questions ask about each of your childcare providers separately.
             </div>
             {validProviders.map((p, i) => (
-              <div key={p.id} style={{ marginBottom: '1.75rem' }}>
+              <div key={p.id} style={{ marginBottom: '2rem' }}>
                 <h3 className="section__title" style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
                   <span className="provider-color-dot" style={{ backgroundColor: p.color }} />
                   {p.name}
@@ -303,19 +332,21 @@ export default function EntryAssessment() {
                 <SurveySection
                   questions={childDevelopmentQuestions}
                   answers={childDev[p.id] || {}}
-                  setAnswers={vals => setChildDev(prev => ({ ...prev, [p.id]: { ...(prev[p.id] || {}), ...vals } }))}
+                  setAnswers={vals =>
+                    setChildDev(prev => ({ ...prev, [p.id]: { ...(prev[p.id] || {}), ...vals } }))
+                  }
                 />
               </div>
             ))}
             {validProviders.length === 0 && (
               <div className="alert alert--warning">
-                You haven't named any providers yet. Please go back and add at least one provider.
+                No providers found. Please go back and add at least one.
               </div>
             )}
           </div>
         )}
 
-        {/* ── Step 5: Meets Parents' Needs ──────────────────────────────────── */}
+        {/* Step 5: Meets Parents' Needs */}
         {step === 5 && (
           <SurveySection
             questions={meetsNeedsQuestions}
@@ -324,11 +355,12 @@ export default function EntryAssessment() {
           />
         )}
 
-        {/* ── Step 6: Parent Emotional State ────────────────────────────────── */}
+        {/* Step 6: Parent Emotional */}
         {step === 6 && (
           <div>
-            <div className="alert alert--warning" style={{ marginBottom: '1.25rem' }}>
-              <strong>⚠ Placeholder questions</strong> — These will be replaced with a validated instrument once selected.
+            <div className="alert alert--warning">
+              <strong>Placeholder questions</strong> — These will be replaced with a
+              validated instrument once selected.
             </div>
             <SurveySection
               questions={parentEmotionalQuestions}
@@ -338,11 +370,11 @@ export default function EntryAssessment() {
           </div>
         )}
 
-        {/* ── Step 7: Child Emotional State ─────────────────────────────────── */}
+        {/* Step 7: Child Emotional */}
         {step === 7 && (
           <div>
-            <div className="alert alert--warning" style={{ marginBottom: '1.25rem' }}>
-              <strong>⚠ Placeholder questions</strong> — These will be replaced with a validated instrument once selected.
+            <div className="alert alert--warning">
+              <strong>Placeholder questions</strong> — To be replaced with validated instrument.
             </div>
             <SurveySection
               questions={childEmotionalQuestions}
@@ -352,11 +384,11 @@ export default function EntryAssessment() {
           </div>
         )}
 
-        {/* ── Step 8: Parent Cognition ──────────────────────────────────────── */}
+        {/* Step 8: Parent Cognition */}
         {step === 8 && (
           <div>
-            <div className="alert alert--warning" style={{ marginBottom: '1.25rem' }}>
-              <strong>⚠ Placeholder questions</strong> — These will be replaced with a validated instrument once selected.
+            <div className="alert alert--warning">
+              <strong>Placeholder questions</strong> — To be replaced with validated instrument.
             </div>
             <SurveySection
               questions={parentCognitionQuestions}
@@ -366,11 +398,11 @@ export default function EntryAssessment() {
           </div>
         )}
 
-        {/* ── Step 9: Child Cognition ───────────────────────────────────────── */}
+        {/* Step 9: Child Cognition */}
         {step === 9 && (
           <div>
-            <div className="alert alert--warning" style={{ marginBottom: '1.25rem' }}>
-              <strong>⚠ Placeholder questions</strong> — These will be replaced with a validated instrument once selected.
+            <div className="alert alert--warning">
+              <strong>Placeholder questions</strong> — To be replaced with validated instrument.
             </div>
             <SurveySection
               questions={childCognitionQuestions}
@@ -380,52 +412,68 @@ export default function EntryAssessment() {
           </div>
         )}
 
-        {/* ── Step 10: Review & Submit ───────────────────────────────────────── */}
+        {/* Step 10: Review & Submit */}
         {step === 10 && (
           <div>
-            <div className="alert alert--success" style={{ marginBottom: '1.25rem' }}>
-              You've completed all sections! Please review your answers below, then click Submit.
+            <div className="alert alert--success">
+              You've completed all sections. Review your answers below, then click Submit.
             </div>
 
             <div className="card">
-              <h3 className="section__title">Your Providers</h3>
-              {validProviders.length === 0
-                ? <p className="text-muted text-sm">No providers entered.</p>
-                : validProviders.map(p => (
-                    <div key={p.id} className="flex items-center" style={{ gap: '.5rem', marginBottom: '.375rem' }}>
-                      <span className="provider-color-dot" style={{ backgroundColor: p.color }} />
-                      <span>{p.name}</span>
-                      {p.type && <span className="badge badge--gray">{PROVIDER_TYPES.find(t => t.value === p.type)?.label}</span>}
+              <h3 className="section__title">Your providers</h3>
+              {validProviders.length === 0 ? (
+                <p className="text-sm text-muted">No providers entered.</p>
+              ) : (
+                validProviders.map(p => (
+                  <div
+                    key={p.id}
+                    className="flex items-center"
+                    style={{ gap: '.5rem', marginBottom: '.375rem' }}
+                  >
+                    <span className="provider-color-dot" style={{ backgroundColor: p.color }} />
+                    <span style={{ fontSize: '.9375rem' }}>{p.name}</span>
+                    {p.type && (
+                      <span className="badge badge--gray">
+                        {PROVIDER_TYPES.find(t => t.value === p.type)?.label}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="card">
+              <h3 className="section__title">Demographics summary</h3>
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr',
+                gap: '.375rem .75rem', fontSize: '.875rem', color: 'var(--ink-2)',
+              }}>
+                {Object.entries(demographics)
+                  .filter(([, v]) => v !== undefined && v !== null && v !== '')
+                  .map(([k, v]) => (
+                    <div key={k}>
+                      <span className="text-muted">{k.replace(/_/g, ' ')}: </span>
+                      <strong>{Array.isArray(v) ? v.join(', ') : String(v)}</strong>
                     </div>
                   ))
-              }
-            </div>
-
-            <div className="card">
-              <h3 className="section__title">Demographics Summary</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '.375rem .75rem', fontSize: '.875rem', color: 'var(--gray-700)' }}>
-                {Object.entries(demographics).filter(([,v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => (
-                  <div key={k}>
-                    <span className="text-muted">{k.replace(/_/g, ' ')}: </span>
-                    <strong>{Array.isArray(v) ? v.join(', ') : String(v)}</strong>
-                  </div>
-                ))}
+                }
               </div>
             </div>
 
             <div className="alert alert--info">
-              Once you submit, you'll be directed to complete your first weekly check-in.
+              Once you submit, your enrollment is complete. You'll receive weekly
+              check-in reminders from the research team.
             </div>
           </div>
         )}
 
       </div>
 
-      {/* Navigation buttons */}
+      {/* Navigation */}
       <div className={`btn-row btn-row--${step === 0 ? 'right' : 'spread'}`}>
         {step > 0 && (
           <button type="button" className="btn btn--secondary" onClick={goBack}>
-            ← Back
+            Back
           </button>
         )}
         {step < STEPS.length - 1 ? (
@@ -435,11 +483,17 @@ export default function EntryAssessment() {
             onClick={goNext}
             disabled={step === 1 && validProviders.length === 0}
           >
-            {step === 1 && validProviders.length === 0 ? 'Add at least one provider' : 'Next →'}
+            {step === 1 && validProviders.length === 0
+              ? 'Add at least one provider first'
+              : 'Continue'}
           </button>
         ) : (
-          <button type="button" className="btn btn--primary btn--lg" onClick={handleSubmit}>
-            Submit Enrollment ✓
+          <button
+            type="button"
+            className="btn btn--primary btn--lg"
+            onClick={handleSubmit}
+          >
+            Submit enrollment
           </button>
         )}
       </div>

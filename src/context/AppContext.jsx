@@ -1,40 +1,31 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { getParticipant, getResearcherAuth } from '../utils/storage'
+import { getResearcherAuth } from '../utils/storage'
 
 const AppContext = createContext(null)
 
+/**
+ * AppProvider
+ *
+ * Keeps only global, cross-page state:
+ *   - isResearcher: whether the current session has researcher access
+ *
+ * Participant data is NOT stored here. Each instrument page (entry, check-in,
+ * exit) reads the participant ID from the URL (?pid=…) and talks directly to
+ * the storage layer, which is keyed by that ID. This keeps each instrument
+ * self-contained and mirrors how they will behave as separate Qualtrics surveys.
+ */
 export function AppProvider({ children }) {
-  const [participant, setParticipant] = useState(null)
   const [isResearcher, setIsResearcher] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Rehydrate from localStorage on mount
   useEffect(() => {
-    const p = getParticipant()
-    if (p) setParticipant(p)
-
     const r = getResearcherAuth()
     if (r?.authenticated) setIsResearcher(true)
-
     setLoading(false)
   }, [])
 
-  // Refresh participant data from storage (call this after any save)
-  function refreshParticipant() {
-    const p = getParticipant()
-    setParticipant(p)
-    return p
-  }
-
   return (
-    <AppContext.Provider value={{
-      participant,
-      setParticipant,
-      refreshParticipant,
-      isResearcher,
-      setIsResearcher,
-      loading,
-    }}>
+    <AppContext.Provider value={{ isResearcher, setIsResearcher, loading }}>
       {children}
     </AppContext.Provider>
   )

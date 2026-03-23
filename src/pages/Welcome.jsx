@@ -1,72 +1,111 @@
 import { useNavigate } from 'react-router-dom'
-import { useApp } from '../context/AppContext'
+
+// Simple inline SVG icons — no emoji
+function IconCalendar() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1.5" y="3" width="15" height="13.5" rx="2"/>
+      <path d="M12 1.5v3M6 1.5v3M1.5 7.5h15"/>
+    </svg>
+  )
+}
+function IconLock() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="8.25" width="12" height="8.25" rx="1.5"/>
+      <path d="M6 8.25V5.25a3 3 0 0 1 6 0v3"/>
+    </svg>
+  )
+}
+function IconAcademic() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2.25L1.5 6 9 9.75 16.5 6 9 2.25z"/>
+      <path d="M4.5 7.875v4.5a6 6 0 0 0 9 0v-4.5"/>
+    </svg>
+  )
+}
 
 export default function Welcome() {
-  const { participant } = useApp()
   const navigate = useNavigate()
 
   return (
     <div>
+      {/* ── Hero ──────────────────────────────────────────────────────────── */}
       <div className="hero">
         <p className="hero__eyebrow">Stanford Graduate School of Education</p>
-        <h1 className="hero__title">Caremometer</h1>
+        <h1 className="hero__title">
+          Care<span>meter</span>
+        </h1>
         <p className="hero__subtitle">
-          Help us understand families' childcare experiences by completing a brief
-          enrollment assessment and weekly check-ins about your childcare schedule.
+          A research study on childcare precarity — how families find, afford,
+          and maintain childcare arrangements over time.
         </p>
         <div className="hero__actions">
-          {participant?.consentGiven ? (
-            <button className="btn btn--white btn--lg" onClick={() => navigate('/checkin')}>
-              Complete Weekly Check-in
-            </button>
-          ) : (
-            <button className="btn btn--white btn--lg" onClick={() => navigate('/login')}>
-              Participate in the Study
-            </button>
-          )}
+          <a
+            href="mailto:mmmazzaferro@gmail.com"
+            className="btn btn--outline-white btn--lg"
+          >
+            Contact the research team
+          </a>
         </div>
       </div>
 
-      <div className="container" style={{ paddingTop: '2.5rem', paddingBottom: '3rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2.5rem' }}>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '1.75rem', marginBottom: '.5rem' }}>📅</div>
-            <strong>Weekly Check-ins</strong>
-            <p className="text-sm text-muted mt-1">
-              A 5-minute weekly survey about your childcare schedule using an interactive calendar.
-            </p>
+      {/* ── About section ─────────────────────────────────────────────────── */}
+      <div className="container" style={{ paddingTop: '3rem', paddingBottom: '4rem' }}>
+
+        <div className="feature-grid">
+          <div className="feature-card">
+            <div className="feature-card__icon"><IconCalendar /></div>
+            <div className="feature-card__title">Weekly check-ins</div>
+            <div className="feature-card__desc">
+              A 5-minute weekly survey with an interactive calendar showing who
+              cared for your child each hour.
+            </div>
           </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '1.75rem', marginBottom: '.5rem' }}>🔒</div>
-            <strong>Private &amp; Anonymous</strong>
-            <p className="text-sm text-muted mt-1">
-              No personally identifying information is stored. Your data is used for research only.
-            </p>
+          <div className="feature-card">
+            <div className="feature-card__icon"><IconLock /></div>
+            <div className="feature-card__title">Private &amp; secure</div>
+            <div className="feature-card__desc">
+              Your responses are stored only in your browser during this
+              prototype phase and are used solely for research.
+            </div>
           </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '1.75rem', marginBottom: '.5rem' }}>🎓</div>
-            <strong>Stanford Research</strong>
-            <p className="text-sm text-muted mt-1">
-              This study is conducted by researchers at the Stanford Graduate School of Education.
-            </p>
+          <div className="feature-card">
+            <div className="feature-card__icon"><IconAcademic /></div>
+            <div className="feature-card__title">Stanford research</div>
+            <div className="feature-card__desc">
+              Conducted by researchers at the Stanford Graduate School of
+              Education to inform childcare policy.
+            </div>
           </div>
         </div>
 
-        <div className="card card--blue">
-          <h2 style={{ fontSize: '1.0625rem', fontWeight: 600, marginBottom: '.5rem' }}>What to expect</h2>
-          <ul style={{ paddingLeft: '1.25rem', color: 'var(--gray-700)', lineHeight: 1.8, fontSize: '.9375rem' }}>
-            <li><strong>Enrollment (~30 min):</strong> Answer questions about your background, childcare providers, and well-being.</li>
-            <li><strong>Weekly check-ins (~5 min):</strong> Paint a calendar showing who cared for your child each hour last week.</li>
-            <li><strong>Exit assessment (~30 min):</strong> A final survey at the end of the study period.</li>
-          </ul>
-        </div>
-
-        <div className="text-center mt-3">
-          <p className="text-sm text-muted">
-            Questions about the study?{' '}
-            <a href="mailto:mmmazzaferro@gmail.com">Contact us</a>
+        <div className="card card--accent" style={{ lineHeight: 1.75 }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '.625rem', color: 'var(--accent-text)' }}>
+            What to expect
+          </h2>
+          <p style={{ fontSize: '.9375rem', color: 'var(--accent-text)' }}>
+            <strong>Enrollment (~30 min)</strong> — Answer questions about your background,
+            childcare providers, and well-being.
+            &nbsp;&nbsp;
+            <strong>Weekly check-ins (~5 min)</strong> — Paint a calendar showing who cared
+            for your child each hour last week.
+            &nbsp;&nbsp;
+            <strong>Exit assessment (~30 min)</strong> — A final survey at the end of
+            the study period.
           </p>
         </div>
+
+        <p
+          className="text-sm text-muted text-center"
+          style={{ marginTop: '2rem' }}
+        >
+          Participating in the study?{' '}
+          You should have received a personal link from the research team.
+          If you have questions, please{' '}
+          <a href="mailto:mmmazzaferro@gmail.com">contact us</a>.
+        </p>
       </div>
     </div>
   )
