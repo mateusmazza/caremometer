@@ -1,43 +1,63 @@
 # Caremometer
 
-A free, open-source, longitudinal web application for measuring childcare precarity in research studies.
+A prototype longitudinal web application for measuring childcare precarity in research studies.
 
-**Built by:** Mateus Mazzaferro, Stanford Graduate School of Education
-**Live demo:** https://mateusmazza.github.io/caremometer/
-**Stack:** React + Vite + localStorage (Firebase-ready) + GitHub Pages
-
----
-
-## What is childcare precarity?
-
-Childcare precarity is the degree to which a family's childcare arrangements are insecure, unreliable, or misaligned with their needs — especially while parents work or attend school. Caremometer operationalizes precarity across five dimensions:
-
-1. **Affordability** — cost burden relative to income, subsidy access
-2. **Reasonable Effort** — geographic burden, difficulty finding care
-3. **Supports Child Development** — accreditation, provider education, program quality
-4. **Meets Parents' Needs** — fit with work schedule, alignment with preferred care
-5. **Instability** — week-to-week changes in care arrangements (measured via calendar)
-
-Computed longitudinal metrics from the weekly calendar data:
-- **Multiplicity** — number of distinct providers used per week
-- **Instability** — proportion of time slots that changed week-over-week
-- **Entropy** — Shannon entropy of provider usage distribution (unpredictability)
+Built by Mateus Mazzaferro, Stanford Graduate School of Education  
+Live demo: [https://mateusmazza.github.io/caremometer/](https://mateusmazza.github.io/caremometer/)  
+Current stack: React + Vite + `localStorage` + GitHub Pages
 
 ---
 
-## Features
+## Current Prototype
 
-- Entry assessment (~30 min) — demographics, provider roster, all precarity domains, placeholder emotional/cognitive measures
-- Weekly calendar check-in (~5 min) — tap-and-drag painting interface for childcare schedules
-- Auto-computed metrics — instability, multiplicity, entropy calculated on each submission
-- Researcher dashboard — participant overview, metrics table, one-click CSV export
-- Exit assessment — mirrors entry structure for longitudinal comparison
-- **Mobile-first** — full touch support on the calendar, 48px touch targets, iOS auto-zoom prevention, responsive layout
-- No server required — data stored in browser localStorage (Firebase-ready interface)
+This repository currently contains a standalone front-end prototype. Participant and researcher data are stored locally in the browser via `localStorage`; there is no backend or cloud database wired up in this version.
+
+The app is organized around three participant instruments plus a researcher dashboard:
+
+- Consent flow via `/consent?pid=...`
+- Enrollment survey via `/entry?pid=...`
+- Weekly check-in via `/checkin?pid=...`
+- Exit assessment via `/exit?pid=...`
+- Researcher dashboard via `/dashboard`
+
+Each participant-facing route uses a `pid` query parameter. That structure is intentional so the flow can later be adapted to Qualtrics embedded data or a backend without rewriting the survey logic.
 
 ---
 
-## Quickstart (for developers)
+## What It Measures
+
+Caremometer operationalizes childcare precarity across five dimensions:
+
+1. Affordability
+2. Reasonable effort
+3. Supports child development
+4. Meets parents' needs
+5. Instability over time
+
+The weekly calendar data is also used to compute:
+
+- Multiplicity: number of distinct providers used in a week
+- Instability: proportion of time slots that changed versus the prior completed week
+- Entropy: Shannon entropy of provider usage within a week
+
+These metrics are computed and stored for researcher export, but they are not shown back to participants in the current UI.
+
+---
+
+## Current Features
+
+- Enrollment survey with demographics, provider roster, affordability, effort, child development, needs, and placeholder well-being/cognition sections
+- Provider roster defaults so `Provider 1` starts as `Myself` with `Parent / self-care`
+- Weekly calendar check-in with editable provider roster
+- Touch-friendly calendar painting using pointer events, including vertical drag painting on phones
+- Exit assessment mirroring the enrollment structure
+- Password-protected researcher dashboard with participant overview and CSV export
+- Thank-you / submission screens without participant-facing answer summaries
+- Responsive mobile layout intended to stay portable to a future Qualtrics adaptation
+
+---
+
+## Quickstart
 
 ```bash
 git clone https://github.com/mateusmazza/caremometer.git
@@ -46,71 +66,68 @@ npm install
 npm run dev
 ```
 
-The app runs at `http://localhost:5173/caremometer/`.
+Vite will print the local dev URL in the terminal. In production, the app is configured for GitHub Pages using a hash router.
 
 ---
 
-## Deploy your own instance (free)
+## Configuration
 
-### 1. Fork this repository
+### Researcher password
 
-Click **Fork** on GitHub to create your own copy.
+The dashboard password is read from `VITE_RESEARCHER_PASSWORD`. If that variable is not set, the prototype falls back to:
 
-### 2. Enable GitHub Pages
-
-In your fork: Settings → Pages → Source: select **GitHub Actions**.
-
-### 3. Set the researcher password
-
-In your fork: Settings → Secrets and variables → Actions → New repository secret:
-- Name: `VITE_RESEARCHER_PASSWORD`
-- Value: a strong password of your choice
-
-### 4. Add your participant emails
-
-Edit `src/utils/storage.js` and update the `ALLOWED_EMAILS` array:
-
-```js
-const ALLOWED_EMAILS = ['participant1@example.com', 'participant2@example.com']
+```text
+precarity-research-2025
 ```
 
-### 5. Push to `main`
+Create a local `.env` file if you want to override it during development:
 
-GitHub Actions will automatically build and deploy. Your app will be at:
-`https://YOUR-USERNAME.github.io/caremometer/`
-
----
-
-## (Optional) Add Firebase for persistent cloud storage
-
-The MVP stores data in `localStorage` — per-browser, per-device. To support participants on multiple devices or to centralize data, swap in Firebase. See **FIREBASE_SETUP.md** for step-by-step instructions.
-
----
-
-## Customizing survey questions
-
-All survey questions are defined in one file: `src/data/questions.js`.
-
-Placeholder questions are labeled with `placeholder: true` and tagged `[Placeholder — ...]` in the text. To replace a placeholder with a validated instrument:
-
-1. Open `src/data/questions.js`
-2. Find the relevant array (e.g., `parentEmotionalQuestions`)
-3. Replace the placeholder items with the validated scale items
-4. Remove `placeholder: true` from each replaced item
-
-No changes to components are needed.
-
----
-
-## Data export
-
-Researchers export data as CSV from the dashboard (`/dashboard`). The CSV includes one row per participant × week × date × hour with all demographics, provider info, and computed metrics.
-
----
-
-## Project structure
-
+```bash
+VITE_RESEARCHER_PASSWORD=your-password-here
 ```
+
+### Data storage
+
+All prototype data is stored in the browser's `localStorage`. That means:
+
+- data is browser-specific
+- data is device-specific
+- clearing browser storage will erase saved prototype data
+- multiple test participants can coexist in one browser because records are keyed by `pid`
+
+This is useful for prototyping, but it is not a production data architecture.
+
+---
+
+## Researcher Workflow
+
+In the current prototype, the researcher uses the dashboard to:
+
+- create/open participant records by visiting participant-specific links with a `pid`
+- monitor enrollment and completion status
+- copy instrument links
+- export participant data as CSV
+
+The exported CSV is long-format and includes participant identifiers, selected demographics, calendar rows, provider details, and computed weekly metrics.
+
+---
+
+## Notes On Qualtrics Portability
+
+The codebase is being kept portable to Qualtrics where practical:
+
+- survey instruments are separated by route
+- participant identity is passed via URL parameter
+- storage helpers are abstracted in `src/utils/storage.js`
+- the calendar interaction relies on standard DOM pointer events and CSS `touch-action`, not a React-only gesture library
+
+That should make a future Qualtrics port more straightforward, although additional work will still be needed.
+
+---
+
+## Project Structure
+
+```text
 src/
   components/
     calendar/       CalendarPainter, ProviderLegend
@@ -118,12 +135,22 @@ src/
     survey/         SurveyQuestion
   context/          AppContext
   data/             questions.js
-  pages/            Welcome, Login, Consent, EntryAssessment,
-                    WeeklyCheckin, ExitAssessment, Dashboard, ThankYou
+  pages/            Welcome, Consent, EntryAssessment,
+                    WeeklyCheckin, ExitAssessment,
+                    Dashboard, ThankYou
   utils/
     metrics.js      Multiplicity, instability, entropy
-    storage.js      localStorage abstraction (Firebase-ready)
+    storage.js      localStorage-backed persistence and export helpers
 ```
+
+---
+
+## Current Limitations
+
+- No backend, authentication service, or cloud persistence is connected
+- Several emotional and cognition measures are still placeholders
+- This prototype is not yet a Qualtrics implementation
+- The repository still contains some legacy/stub files from earlier iterations that are not part of the active route flow
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **Project**: Caremometer — a free, open-source, longitudinal web-based tool for measuring childcare precarity in research studies.
 > **PI/Developer**: Mateus (Stanford GSE PhD student)
-> **Stack**: React SPA + Firebase (Spark free tier) + GitHub Pages
+> **Stack**: React SPA + localStorage prototype + GitHub Pages
 > **Repo**: https://github.com/mateusmazza/caremometer
 
 ---
@@ -17,9 +17,9 @@ A web app for parents to self-report childcare arrangements across time, enablin
 
 ### Why this stack?
 - **GitHub Pages**: Free static hosting, integrates with GitHub for open-source distribution
-- **Firebase (free Spark plan)**: Provides authentication, Firestore database (1 GB storage, 50K reads/day, 20K writes/day), and hosting — all free. Well within limits for a research study.
-- **React**: Component-based, widely adopted, good ecosystem. The calendar/painting interface already exists as an HTML prototype that can be ported.
-- **No paid services required**: The entire stack is free. Stanford's Qualtrics can also be used as an optional integration for survey modules if preferred.
+- **localStorage prototype**: Keeps the current build lightweight, fast to iterate on, and easy to test without a backend
+- **React**: Component-based, widely adopted, and a good fit for the calendar interaction
+- **Qualtrics portability**: The current route and storage abstractions are being kept simple so later migration to Qualtrics remains feasible
 
 ### What precarity constructs does this measure?
 Drawn from Duh Leong et al. (2023) and the PI's framework:
@@ -151,7 +151,7 @@ Computed longitudinal metrics (from the calendar data):
 
 - [ ] **3.9** Implement **Cognition modules** (steps 6–7) — use clearly labeled placeholders (e.g., "Placeholder Parent Cognition Question 1", "Placeholder Child Cognition Question 1") with Likert scales; replace with validated instruments once selected
 
-- [ ] **3.10** Build a summary/review screen at the end of entry assessment before final submission
+- [x] **3.10** Build a final submission screen at the end of entry assessment without participant-facing summaries
 
 ---
 
@@ -162,7 +162,7 @@ Computed longitudinal metrics (from the calendar data):
   - Make providers dynamic (pulled from the participant's enrolled provider roster)
   - Use actual past-7-days dates as column headers (not generic Mon–Sun), matching the Qualtrics JS version
 
-- [ ] **4.2** Add touch/mobile support to the calendar (touch events for tablet/phone painting)
+- [x] **4.2** Add touch/mobile support to the calendar, including vertical drag painting on phones
 
 - [ ] **4.3** Build a `ProviderLegend` component showing color coding with provider names
 
@@ -173,7 +173,7 @@ Computed longitudinal metrics (from the calendar data):
   - Parent emotional state (brief, ~2 items)
   - Child emotional state (brief, ~2 items)
 
-- [ ] **4.6** Build the weekly check-in **review screen**: show summary of time filled (% complete), warning if calendar is incomplete, before submission
+- [x] **4.6** Build the weekly check-in final submission screen without participant-facing review summaries
 
 - [ ] **4.7** Auto-compute and store metrics on submission:
   - **Multiplicity**: count of distinct providers used that week
