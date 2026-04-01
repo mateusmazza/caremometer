@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(grep -r \"setParticipant\\\\|getParticipant\\\\\\(\\\\\\)\" src/ --include=*.jsx --include=*.js)",
+      "Bash(python3:*)",
+      "Bash(node -e \":*)",
+      "Bash(node qualtrics/generate-qsf.js)",
+      "Bash(mv qualtrics/generate-qsf.js qualtrics/generate-qsf.cjs)",
+      "Bash(node qualtrics/generate-qsf.cjs)",
+      "Bash(for f:*)",
+      "Bash(do node:*)",
+      "Bash(echo \"$f: valid JSON\")",
+      "Bash(echo \"$f: INVALID\")",
+      "Bash(done)",
+      "Bash(echo \"$f: valid\")"
+    ]
+  }
+}

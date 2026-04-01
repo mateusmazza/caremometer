@@ -59,7 +59,7 @@ export default function ExitAssessment() {
   const [params]  = useSearchParams()
   const pid       = params.get('pid')
 
-  const [loading, setLoading]                        = useState(true)
+  const [loading, setLoading]                        = useState(Boolean(pid))
   const [step, setStep]                              = useState(0)
   const [currentSituation, setCurrentSituation]     = useState({})
   const [affordability, setAffordability]            = useState({})
@@ -69,9 +69,13 @@ export default function ExitAssessment() {
   const [childCognition, setChildCognition]          = useState({})
 
   useEffect(() => {
-    if (!pid) { setLoading(false); return }
+    if (!pid) return
 
-    getParticipant(pid).then(p => {
+    let isActive = true
+
+    ;(async () => {
+      const p = await getParticipant(pid)
+      if (!isActive) return
       if (!p) { navigate(`/consent?pid=${pid}`); return }
       if (!p.entryAssessment?.completedAt) { navigate(`/entry?pid=${pid}`); return }
 
@@ -83,7 +87,11 @@ export default function ExitAssessment() {
       setParentCognition(exit.parentCognition || {})
       setChildCognition(exit.childCognition || {})
       setLoading(false)
-    })
+    })()
+
+    return () => {
+      isActive = false
+    }
   }, [pid, navigate])
 
   // Guard

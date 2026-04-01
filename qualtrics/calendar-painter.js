@@ -1,3 +1,4 @@
+/* global Qualtrics */
 /**
  * Caremometer Calendar Painter — Qualtrics Embed
  *
@@ -72,7 +73,11 @@ Qualtrics.SurveyEngine.addOnload(function () {
 
   // Try to restore from existing textarea value
   if (qTextArea && qTextArea.value) {
-    try { calendarData = JSON.parse(qTextArea.value) } catch (e) {}
+    try {
+      calendarData = JSON.parse(qTextArea.value)
+    } catch {
+      calendarData = {}
+    }
   }
 
   // ── Build UI ──────────────────────────────────────────────────────────

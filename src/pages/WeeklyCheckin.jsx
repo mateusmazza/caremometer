@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import ProgressStepper  from '../components/layout/ProgressStepper'
 import SurveyQuestion   from '../components/survey/SurveyQuestion'
 import CalendarPainter  from '../components/calendar/CalendarPainter'
-import { weeklyCheckinQuestions, PROVIDER_COLORS } from '../data/questions'
+import { weeklyCheckinQuestions, PROVIDER_COLORS, PROVIDER_TYPES } from '../data/questions'
 import {
   getParticipant,
   saveWeeklyCheckin,
@@ -40,7 +40,7 @@ export default function WeeklyCheckin() {
   const weekId = getCurrentWeekId()
   const days   = getPast7Days()
 
-  const [loading, setLoading]                       = useState(true)
+  const [loading, setLoading]                       = useState(Boolean(pid))
   const [step, setStep]                             = useState(0)
   const [calendarData, setCalendarData]             = useState({})
   const [providers, setProviders]                   = useState([])
@@ -49,9 +49,13 @@ export default function WeeklyCheckin() {
   const [priorCalendar, setPriorCalendar]           = useState(null)
 
   useEffect(() => {
-    if (!pid) { setLoading(false); return }
+    if (!pid) return
 
-    getParticipant(pid).then(p => {
+    let isActive = true
+
+    ;(async () => {
+      const p = await getParticipant(pid)
+      if (!isActive) return
       if (!p) { navigate(`/consent?pid=${pid}`); return }
       if (!p.entryAssessment?.completedAt) { navigate(`/entry?pid=${pid}`); return }
 
@@ -64,9 +68,14 @@ export default function WeeklyCheckin() {
       setCalendarData(existingCheckin?.calendarData || {})
       setProviders(existingProviders)
       setSurveyAnswers(existingCheckin?.surveyAnswers || {})
+      setShowProviderEdit(existingCheckin?.surveyAnswers?.provider_changes === 'yes')
       setPriorCalendar(prior)
       setLoading(false)
-    })
+    })()
+
+    return () => {
+      isActive = false
+    }
   }, [pid, navigate, weekId])
 
   // Guard — missing pid
@@ -167,7 +176,7 @@ export default function WeeklyCheckin() {
                 value={surveyAnswers.provider_changes}
                 onChange={val => {
                   setSurveyAnswers(prev => ({ ...prev, provider_changes: val }))
-                  if (val === 'yes') setShowProviderEdit(true)
+                  setShowProviderEdit(val === 'yes')
                 }}
               />
               {surveyAnswers.provider_changes === 'yes' && (
@@ -213,6 +222,19 @@ export default function WeeklyCheckin() {
                         onChange={e => updateProvider(p.id, 'name', e.target.value)}
                         placeholder="Provider name"
                       />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Type of care</label>
+                      <select
+                        className="form-select"
+                        value={p.type}
+                        onChange={e => updateProvider(p.id, 'type', e.target.value)}
+                      >
+                        <option value="">— Select type —</option>
+                        {PROVIDER_TYPES.map(t => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
                     </div>
                     <div style={{ display: 'flex', gap: '.375rem', flexWrap: 'wrap' }}>
                       {PROVIDER_COLORS.map(c => (

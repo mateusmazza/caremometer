@@ -18,21 +18,29 @@ export default function Consent() {
   const pid       = params.get('pid')
 
   const [agreed, setAgreed]   = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(Boolean(pid))
   const [ready, setReady]     = useState(false) // participant record exists + not yet consented
 
   useEffect(() => {
-    if (!pid) { setLoading(false); return }
+    if (!pid) return
 
-    getParticipant(pid).then(async p => {
+    let isActive = true
+
+    ;(async () => {
+      let p = await getParticipant(pid)
       if (!p) p = await createParticipant(pid)
+      if (!isActive) return
       if (p.consentGiven) {
         navigate(`/entry?pid=${pid}`)
         return
       }
       setReady(true)
       setLoading(false)
-    })
+    })()
+
+    return () => {
+      isActive = false
+    }
   }, [pid, navigate])
 
   if (!pid) {

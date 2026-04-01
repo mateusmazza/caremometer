@@ -78,7 +78,7 @@ export default function EntryAssessment() {
   const [params]  = useSearchParams()
   const pid       = params.get('pid')
 
-  const [loading, setLoading]                   = useState(true)
+  const [loading, setLoading]                   = useState(Boolean(pid))
   const [step, setStep]                         = useState(0)
   const [demographics, setDemographics]         = useState({})
   const [providers, setProviders]               = useState([newProvider(0)])
@@ -90,10 +90,14 @@ export default function EntryAssessment() {
   const [childCognition, setChildCognition]     = useState({})
 
   useEffect(() => {
-    if (!pid) { setLoading(false); return }
+    if (!pid) return
 
-    getParticipant(pid).then(async p => {
+    let isActive = true
+
+    ;(async () => {
+      let p = await getParticipant(pid)
       if (!p) p = await createParticipant(pid)
+      if (!isActive) return
       if (!p.consentGiven) {
         navigate(`/consent?pid=${pid}`)
         return
@@ -108,7 +112,11 @@ export default function EntryAssessment() {
       setParentCognition(entry.parentCognition || {})
       setChildCognition(entry.childCognition || {})
       setLoading(false)
-    })
+    })()
+
+    return () => {
+      isActive = false
+    }
   }, [pid, navigate])
 
   // Guard — missing pid

@@ -3,6 +3,13 @@ import ProviderLegend from './ProviderLegend'
 
 const HOURS = Array.from({ length: 17 }, (_, i) => i + 6)  // 6..22
 
+function formatLocalDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function formatHour(h) {
   if (h === 12) return '12 PM'
   if (h < 12)  return `${h} AM`
@@ -15,7 +22,7 @@ function formatDate(dateStr) {
 }
 
 function isToday(dateStr) {
-  return dateStr === new Date().toISOString().slice(0, 10)
+  return dateStr === formatLocalDate(new Date())
 }
 
 /**

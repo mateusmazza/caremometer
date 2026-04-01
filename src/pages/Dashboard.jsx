@@ -160,11 +160,18 @@ function ParticipantDetail({ pid }) {
   const [loading, setLoading]         = useState(true)
 
   useEffect(() => {
-    setLoading(true)
-    getParticipant(pid).then(p => {
+    let isActive = true
+
+    ;(async () => {
+      const p = await getParticipant(pid)
+      if (!isActive) return
       setParticipant(p)
       setLoading(false)
-    })
+    })()
+
+    return () => {
+      isActive = false
+    }
   }, [pid])
 
   if (loading) {
@@ -384,7 +391,15 @@ function DashboardContent() {
     if (!selectedPid && ids.length > 0) setSelectedPid(ids[0])
   }, [selectedPid])
 
-  useEffect(() => { refreshPids() }, [refreshPids])
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void refreshPids()
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [refreshPids])
 
   async function handleAddParticipant(e) {
     e.preventDefault()
@@ -476,7 +491,7 @@ function DashboardContent() {
                   Participant {selectedPid}
                 </h2>
               </div>
-              <ParticipantDetail pid={selectedPid} />
+              <ParticipantDetail key={selectedPid} pid={selectedPid} />
             </div>
           ) : (
             <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>

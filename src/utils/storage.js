@@ -68,6 +68,13 @@ function participantRef(pid) {
   return doc(db, PARTICIPANTS_COL, pid)
 }
 
+function formatLocalDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // ── Participant list ───────────────────────────────────────────────────────────
 
 export async function getAllParticipantIds() {
@@ -111,7 +118,8 @@ export async function generateParticipantId() {
 export async function createParticipant(pid) {
   const participant = {
     id:              pid,
-    enrolledAt:      new Date().toISOString(),
+    createdAt:       new Date().toISOString(),
+    enrolledAt:      null,
     status:          'active',
     consentGiven:    false,
     providers:       [],
@@ -173,7 +181,10 @@ export async function completeEntryAssessment(pid) {
     ...participant?.entryAssessment,
     completedAt: new Date().toISOString(),
   }
-  return saveParticipant(pid, { entryAssessment: updated })
+  return saveParticipant(pid, {
+    entryAssessment: updated,
+    enrolledAt: participant?.enrolledAt || new Date().toISOString(),
+  })
 }
 
 // ── Weekly Check-ins ───────────────────────────────────────────────────────────
@@ -263,9 +274,10 @@ export async function exportParticipantCSV(pid) {
 
   for (const checkin of checkins) {
     const calendarData = checkin.calendarData || {}
+    const providerRoster = checkin.providers?.length ? checkin.providers : participant.providers
     for (const [date, hours] of Object.entries(calendarData)) {
       for (const [hour, providerId] of Object.entries(hours)) {
-        const provider = participant.providers?.find(p => p.id === providerId)
+        const provider = providerRoster?.find(p => p.id === providerId)
         rows.push({
           participant_id:       participant.id,
           enrolled_at:          participant.enrolledAt,
@@ -315,7 +327,7 @@ export function getCurrentWeekId() {
   const day    = now.getDay() // 0 = Sunday
   const sunday = new Date(now)
   sunday.setDate(now.getDate() - day - 7)
-  return `week_${sunday.toISOString().slice(0, 10)}`
+  return `week_${formatLocalDate(sunday)}`
 }
 
 export function getPast7Days() {
@@ -328,7 +340,7 @@ export function getPast7Days() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(sunday)
     d.setDate(sunday.getDate() + i)
-    days.push(d.toISOString().slice(0, 10))
+    days.push(formatLocalDate(d))
   }
   return days
 }
