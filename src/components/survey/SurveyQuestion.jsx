@@ -7,7 +7,7 @@
  *   onChange   - (newValue) => void
  *   allAnswers - optional parent answer object (for derived/repeat questions)
  */
-export default function SurveyQuestion({ question, value, onChange, allAnswers = {} }) {
+export default function SurveyQuestion({ question, value, onChange, allAnswers = {}, namePrefix }) {
   const { id, label, type, options, placeholder, required,
           min, max, maxLength, hint, note, fields, countSource } = question
 
@@ -108,6 +108,7 @@ export default function SurveyQuestion({ question, value, onChange, allAnswers =
 
   // ── Single choice (radio) ──────────────────────────────────────────────────
   if (type === 'single') {
+    const radioName = namePrefix ? `${namePrefix}_${id}` : id
     return (
       <div className="form-group">
         {labelEl}
@@ -119,7 +120,7 @@ export default function SurveyQuestion({ question, value, onChange, allAnswers =
             >
               <input
                 type="radio"
-                name={id}
+                name={radioName}
                 value={opt.value}
                 checked={value === opt.value}
                 onChange={() => onChange(opt.value)}

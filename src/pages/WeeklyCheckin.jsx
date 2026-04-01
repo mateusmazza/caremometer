@@ -247,14 +247,19 @@ export default function WeeklyCheckin() {
         {/* Step 1: Survey */}
         {step === 1 && (
           <div>
-            {surveyQs.map(q => (
-              <SurveyQuestion
-                key={q.id}
-                question={q}
-                value={surveyAnswers[q.id]}
-                onChange={val => setSurveyAnswers(prev => ({ ...prev, [q.id]: val }))}
-              />
-            ))}
+            {surveyQs
+              .filter(q => {
+                if (!q.conditional) return true
+                return surveyAnswers[q.conditional.id] === q.conditional.value
+              })
+              .map(q => (
+                <SurveyQuestion
+                  key={q.id}
+                  question={q}
+                  value={surveyAnswers[q.id]}
+                  onChange={val => setSurveyAnswers(prev => ({ ...prev, [q.id]: val }))}
+                />
+              ))}
           </div>
         )}
 

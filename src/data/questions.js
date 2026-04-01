@@ -515,14 +515,10 @@ export const childDevelopmentQuestions = [
 export const meetsNeedsQuestions = [
   {
     id: 'preferred_care',
-    label: 'Is your current childcare arrangement your preferred type of care?',
-    type: 'single',
+    label: 'My current childcare arrangement is my preferred type of care.',
+    type: 'scale',
     required: false,
-    options: [
-      { value: 'yes', label: 'Yes, this is what I prefer' },
-      { value: 'somewhat', label: 'Somewhat — it\'s acceptable but not ideal' },
-      { value: 'no', label: 'No — I would prefer a different type of arrangement' },
-    ],
+    options: AGREE_5,
   },
   {
     id: 'schedule_fit',
@@ -540,13 +536,10 @@ export const meetsNeedsQuestions = [
   },
   {
     id: 'work_impact',
-    label: 'Have recent difficulties with childcare impacted your ability to work?',
-     type: 'single',
+    label: 'Recent difficulties with childcare have impacted my ability to work or study.',
+    type: 'scale',
     required: false,
-    options: [
-      { value: 'yes', label: 'Yes' },
-      { value: 'no', label: 'No' },
-    ],
+    options: AGREE_5,
   },
 ]
 

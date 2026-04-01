@@ -49,7 +49,7 @@ function newProvider(index) {
   }
 }
 
-function SurveySection({ questions, answers, setAnswers, filterConditional }) {
+function SurveySection({ questions, answers, setAnswers, filterConditional, namePrefix }) {
   const visible = filterConditional
     ? questions.filter(q => {
         if (!q.conditional) return true
@@ -66,6 +66,7 @@ function SurveySection({ questions, answers, setAnswers, filterConditional }) {
           value={answers[q.id]}
           allAnswers={answers}
           onChange={val => setAnswers({ ...answers, [q.id]: val })}
+          namePrefix={namePrefix}
         />
       ))}
     </>
@@ -319,6 +320,7 @@ export default function EntryAssessment() {
                   setAnswers={vals =>
                     setChildDev(prev => ({ ...prev, [p.id]: { ...(prev[p.id] || {}), ...vals } }))
                   }
+                  namePrefix={p.id}
                 />
               </div>
             ))}
