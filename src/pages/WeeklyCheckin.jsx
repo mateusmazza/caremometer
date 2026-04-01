@@ -8,7 +8,6 @@ import {
   getParticipant,
   saveWeeklyCheckin,
   completeWeeklyCheckin,
-  getWeeklyCheckin,
   saveParticipant,
   getCurrentWeekId,
   getPast7Days,
@@ -40,29 +39,35 @@ export default function WeeklyCheckin() {
 
   const weekId = getCurrentWeekId()
   const days   = getPast7Days()
-  const existingParticipant = pid ? getParticipant(pid) : null
-  const existingCheckin = pid ? getWeeklyCheckin(pid, weekId) : null
-  const existingProviders = existingCheckin?.providers || existingParticipant?.providers || []
-  const existingPriorCalendar = existingParticipant
-    ? (existingParticipant.weeklyCheckins || [])
-        .filter(c => c.id !== weekId && c.completedAt)
-        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]?.calendarData || null
-    : null
 
-  const [step, setStep]                     = useState(0)
-  const [calendarData, setCalendarData]     = useState(existingCheckin?.calendarData || {})
-  const [providers, setProviders]           = useState(existingProviders.length > 0 ? existingProviders : [])
-  const [surveyAnswers, setSurveyAnswers]   = useState(existingCheckin?.surveyAnswers || {})
-  const [showProviderEdit, setShowProviderEdit] = useState(false)
-  const [priorCalendar]                     = useState(existingPriorCalendar)
+  const [loading, setLoading]                       = useState(true)
+  const [step, setStep]                             = useState(0)
+  const [calendarData, setCalendarData]             = useState({})
+  const [providers, setProviders]                   = useState([])
+  const [surveyAnswers, setSurveyAnswers]           = useState({})
+  const [showProviderEdit, setShowProviderEdit]     = useState(false)
+  const [priorCalendar, setPriorCalendar]           = useState(null)
 
   useEffect(() => {
-    if (!pid) return
+    if (!pid) { setLoading(false); return }
 
-    const p = getParticipant(pid)
-    if (!p) { navigate(`/consent?pid=${pid}`); return }
-    if (!p.entryAssessment?.completedAt) { navigate(`/entry?pid=${pid}`); return }
-  }, [navigate, pid, weekId])
+    getParticipant(pid).then(p => {
+      if (!p) { navigate(`/consent?pid=${pid}`); return }
+      if (!p.entryAssessment?.completedAt) { navigate(`/entry?pid=${pid}`); return }
+
+      const existingCheckin   = p.weeklyCheckins?.find(c => c.id === weekId) || null
+      const existingProviders = existingCheckin?.providers || p.providers || []
+      const prior             = (p.weeklyCheckins || [])
+        .filter(c => c.id !== weekId && c.completedAt)
+        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]?.calendarData || null
+
+      setCalendarData(existingCheckin?.calendarData || {})
+      setProviders(existingProviders)
+      setSurveyAnswers(existingCheckin?.surveyAnswers || {})
+      setPriorCalendar(prior)
+      setLoading(false)
+    })
+  }, [pid, navigate, weekId])
 
   // Guard — missing pid
   if (!pid) {
@@ -80,10 +85,18 @@ export default function WeeklyCheckin() {
     )
   }
 
+  if (loading) {
+    return (
+      <div className="container page" style={{ textAlign: 'center', paddingTop: '4rem' }}>
+        <p className="text-muted">Loading…</p>
+      </div>
+    )
+  }
+
   // ── Autosave ─────────────────────────────────────────────────────────────
 
-  function saveProgress() {
-    saveWeeklyCheckin(pid, weekId, {
+  async function saveProgress() {
+    await saveWeeklyCheckin(pid, weekId, {
       weekStartDate: days[0],
       calendarData,
       providers,
@@ -91,8 +104,8 @@ export default function WeeklyCheckin() {
     })
   }
 
-  function goNext()  { saveProgress(); setStep(s => s + 1); window.scrollTo(0, 0) }
-  function goBack()  { saveProgress(); setStep(s => s - 1); window.scrollTo(0, 0) }
+  async function goNext()  { await saveProgress(); setStep(s => s + 1); window.scrollTo(0, 0) }
+  async function goBack()  { await saveProgress(); setStep(s => s - 1); window.scrollTo(0, 0) }
 
   // ── Provider editing ──────────────────────────────────────────────────────
 
@@ -102,17 +115,17 @@ export default function WeeklyCheckin() {
 
   // ── Submit ────────────────────────────────────────────────────────────────
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const metrics = computeAllMetrics(calendarData, priorCalendar)
-    saveWeeklyCheckin(pid, weekId, {
+    await saveWeeklyCheckin(pid, weekId, {
       weekStartDate: days[0],
       calendarData,
       providers,
       surveyAnswers,
       metrics,
     })
-    completeWeeklyCheckin(pid, weekId)
-    saveParticipant(pid, { providers })
+    await completeWeeklyCheckin(pid, weekId)
+    await saveParticipant(pid, { providers })
     navigate(`/thank-you?type=checkin&pid=${pid}`)
   }
 
@@ -269,7 +282,6 @@ export default function WeeklyCheckin() {
             <div className="alert alert--success">
               You've completed this week's check-in. Click Submit to save your responses.
             </div>
-
             <div className="alert alert--info">
               Once you submit, your responses for this week will be saved.
             </div>

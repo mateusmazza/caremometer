@@ -7,8 +7,8 @@ export default function Header() {
   const { isResearcher, setIsResearcher } = useApp()
   const navigate = useNavigate()
 
-  function handleLogout() {
-    researcherLogout()
+  async function handleLogout() {
+    await researcherLogout()
     setIsResearcher(false)
     navigate('/')
   }

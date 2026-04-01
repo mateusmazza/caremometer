@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { screenerQuestions } from '../data/questions'
-import logo from '../assets/caremometer-logo.png'
 import {
   createParticipant,
   generateParticipantId,
@@ -10,6 +9,7 @@ import {
   saveParticipant,
   getParticipant,
 } from '../utils/storage'
+import logo from '../assets/caremometer-logo.png'
 
 /**
  * Screener — Instrument 0 (public eligibility questionnaire)
@@ -20,7 +20,7 @@ import {
  *   - participant.contactInfo                  (PII — never exported, researcher-only)
  */
 
-// All 4 eligibility criteria require 'yes' to pass
+// All eligibility criteria require 'yes' to pass
 const ELIGIBLE_VALUE = 'yes'
 
 function EligibilityQuestion({ question, value, onChange }) {
@@ -50,13 +50,14 @@ function EligibilityQuestion({ question, value, onChange }) {
 
 export default function Screener() {
   const [params]      = useSearchParams()
-  const preloadedPid  = params.get('pid') // optional — allows researcher to pre-assign a PID
+  const preloadedPid  = params.get('pid')
 
-  const [step, setStep]       = useState(0)   // 0: eligibility  1: contact  2: confirmation
+  const [step, setStep]             = useState(0)   // 0: eligibility  1: contact  2: confirmation
   const [ineligible, setIneligible] = useState(false)
-  const [answers, setAnswers] = useState({})
-  const [contact, setContact] = useState({ email: '', phone: '' })
-  const [pid, setPid]         = useState(null)
+  const [answers, setAnswers]       = useState({})
+  const [contact, setContact]       = useState({ email: '', phone: '' })
+  const [pid, setPid]               = useState(null)
+  const [submitting, setSubmitting] = useState(false)
 
   const allAnswered = screenerQuestions.every(q => answers[q.id] !== undefined)
   const isEligible  = screenerQuestions.every(q => answers[q.id] === ELIGIBLE_VALUE)
@@ -70,18 +71,16 @@ export default function Screener() {
     }
   }
 
-  function handleSubmit() {
-    const newPid = preloadedPid || generateParticipantId()
+  async function handleSubmit() {
+    setSubmitting(true)
+    const newPid = preloadedPid || await generateParticipantId()
 
-    // Create participant record if it doesn't exist yet
-    if (!getParticipant(newPid)) createParticipant(newPid)
+    if (!await getParticipant(newPid)) await createParticipant(newPid)
 
-    // Save eligibility answers as research data
-    saveScreener(newPid, { eligibilityAnswers: answers })
+    await saveScreener(newPid, { eligibilityAnswers: answers })
 
-    // Save contact info in a separate field — never included in CSV exports
     if (contact.email.trim() || contact.phone.trim()) {
-      saveParticipant(newPid, {
+      await saveParticipant(newPid, {
         contactInfo: {
           email:       contact.email.trim(),
           phone:       contact.phone.trim(),
@@ -90,8 +89,9 @@ export default function Screener() {
       })
     }
 
-    completeScreener(newPid)
+    await completeScreener(newPid)
     setPid(newPid)
+    setSubmitting(false)
     setStep(2)
   }
 
@@ -169,7 +169,7 @@ export default function Screener() {
               Do you qualify?
             </h2>
             <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '.9375rem' }}>
-              Please answer all four questions below to check your eligibility.
+              Please answer all questions below to check your eligibility.
               All questions are required.
             </p>
 
@@ -248,8 +248,13 @@ export default function Screener() {
               <button type="button" className="btn btn--secondary" onClick={() => setStep(0)}>
                 Back
               </button>
-              <button type="button" className="btn btn--primary btn--lg" onClick={handleSubmit}>
-                Submit
+              <button
+                type="button"
+                className="btn btn--primary btn--lg"
+                onClick={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? 'Saving…' : 'Submit'}
               </button>
             </div>
           </div>

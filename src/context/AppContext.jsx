@@ -1,5 +1,6 @@
-import { createContext, useContext, useState } from 'react'
-import { getResearcherAuth } from '../utils/storage'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '../firebase'
 
 const AppContext = createContext(null)
 
@@ -7,19 +8,24 @@ const AppContext = createContext(null)
  * AppProvider
  *
  * Keeps only global, cross-page state:
- *   - isResearcher: whether the current session has researcher access
- *
- * Participant data is NOT stored here. Each instrument page (entry, check-in,
- * exit) reads the participant ID from the URL (?pid=…) and talks directly to
- * the storage layer, which is keyed by that ID. This keeps each instrument
- * self-contained and mirrors how they will behave as separate Qualtrics surveys.
+ *   - isResearcher:  whether the current session has Firebase Auth credentials
+ *   - authLoading:   true while Firebase resolves the initial auth state
+ *                    (prevents login screen flash on page reload)
  */
 export function AppProvider({ children }) {
-  const [isResearcher, setIsResearcher] = useState(() => Boolean(getResearcherAuth()?.authenticated))
-  const [loading] = useState(false)
+  const [isResearcher, setIsResearcher] = useState(false)
+  const [authLoading, setAuthLoading]   = useState(true)
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      setIsResearcher(!!user)
+      setAuthLoading(false)
+    })
+    return unsubscribe
+  }, [])
 
   return (
-    <AppContext.Provider value={{ isResearcher, setIsResearcher, loading }}>
+    <AppContext.Provider value={{ isResearcher, setIsResearcher, authLoading }}>
       {children}
     </AppContext.Provider>
   )

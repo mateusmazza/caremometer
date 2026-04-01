@@ -74,35 +74,42 @@ function SurveySection({ questions, answers, setAnswers, filterConditional, name
 }
 
 export default function EntryAssessment() {
-  const navigate       = useNavigate()
-  const [params]       = useSearchParams()
-  const pid            = params.get('pid')
-  const existingParticipant = pid ? getParticipant(pid) : null
-  const existingEntry = existingParticipant?.entryAssessment || {}
+  const navigate  = useNavigate()
+  const [params]  = useSearchParams()
+  const pid       = params.get('pid')
 
-  const [step, setStep]                     = useState(0)
-  const [demographics, setDemographics]     = useState(existingEntry.demographics || {})
-  const [providers, setProviders]           = useState(existingParticipant?.providers?.length ? existingParticipant.providers : [newProvider(0)])
-  const [affordability, setAffordability]   = useState(existingEntry.affordability || {})
-  const [effort, setEffort]                 = useState(existingEntry.effort || {})
-  const [childDev, setChildDev]             = useState(existingEntry.childDev || {})
-  const [meetsNeeds, setMeetsNeeds]         = useState(existingEntry.meetsNeeds || {})
-  const [parentCognition, setParentCognition] = useState(existingEntry.parentCognition || {})
-  const [childCognition, setChildCognition] = useState(existingEntry.childCognition || {})
+  const [loading, setLoading]                   = useState(true)
+  const [step, setStep]                         = useState(0)
+  const [demographics, setDemographics]         = useState({})
+  const [providers, setProviders]               = useState([newProvider(0)])
+  const [affordability, setAffordability]       = useState({})
+  const [effort, setEffort]                     = useState({})
+  const [childDev, setChildDev]                 = useState({})
+  const [meetsNeeds, setMeetsNeeds]             = useState({})
+  const [parentCognition, setParentCognition]   = useState({})
+  const [childCognition, setChildCognition]     = useState({})
 
   useEffect(() => {
-    if (!pid) return
+    if (!pid) { setLoading(false); return }
 
-    // Auto-create participant if needed
-    let p = getParticipant(pid)
-    if (!p) p = createParticipant(pid)
-
-    // Redirect to consent if not yet given
-    if (!p.consentGiven) {
-      navigate(`/consent?pid=${pid}`)
-      return
-    }
-  }, [navigate, pid])
+    getParticipant(pid).then(async p => {
+      if (!p) p = await createParticipant(pid)
+      if (!p.consentGiven) {
+        navigate(`/consent?pid=${pid}`)
+        return
+      }
+      const entry = p.entryAssessment || {}
+      setDemographics(entry.demographics || {})
+      setProviders(p.providers?.length ? p.providers : [newProvider(0)])
+      setAffordability(entry.affordability || {})
+      setEffort(entry.effort || {})
+      setChildDev(entry.childDev || {})
+      setMeetsNeeds(entry.meetsNeeds || {})
+      setParentCognition(entry.parentCognition || {})
+      setChildCognition(entry.childCognition || {})
+      setLoading(false)
+    })
+  }, [pid, navigate])
 
   // Guard — missing pid
   if (!pid) {
@@ -120,6 +127,14 @@ export default function EntryAssessment() {
     )
   }
 
+  if (loading) {
+    return (
+      <div className="container page" style={{ textAlign: 'center', paddingTop: '4rem' }}>
+        <p className="text-muted">Loading…</p>
+      </div>
+    )
+  }
+
   // ── Provider management ──────────────────────────────────────────────────
 
   function addProvider()              { setProviders(prev => [...prev, newProvider(prev.length)]) }
@@ -128,35 +143,35 @@ export default function EntryAssessment() {
 
   // ── Autosave ─────────────────────────────────────────────────────────────
 
-  function saveCurrentStep() {
+  async function saveCurrentStep() {
     switch (step) {
-      case 0:  saveEntryAssessmentSection(pid, 'demographics',    demographics);    break
-      case 1:  saveProviders(pid, providers);                                        break
-      case 2:  saveEntryAssessmentSection(pid, 'affordability',   affordability);   break
-      case 3:  saveEntryAssessmentSection(pid, 'effort',          effort);          break
-      case 4:  saveEntryAssessmentSection(pid, 'childDev',        childDev);        break
-      case 5:  saveEntryAssessmentSection(pid, 'meetsNeeds',      meetsNeeds);      break
-      case 6:  saveEntryAssessmentSection(pid, 'parentCognition', parentCognition); break
-      case 7:  saveEntryAssessmentSection(pid, 'childCognition',  childCognition);  break
+      case 0:  await saveEntryAssessmentSection(pid, 'demographics',    demographics);    break
+      case 1:  await saveProviders(pid, providers);                                        break
+      case 2:  await saveEntryAssessmentSection(pid, 'affordability',   affordability);   break
+      case 3:  await saveEntryAssessmentSection(pid, 'effort',          effort);          break
+      case 4:  await saveEntryAssessmentSection(pid, 'childDev',        childDev);        break
+      case 5:  await saveEntryAssessmentSection(pid, 'meetsNeeds',      meetsNeeds);      break
+      case 6:  await saveEntryAssessmentSection(pid, 'parentCognition', parentCognition); break
+      case 7:  await saveEntryAssessmentSection(pid, 'childCognition',  childCognition);  break
       default: break
     }
   }
 
-  function goNext() {
-    saveCurrentStep()
+  async function goNext() {
+    await saveCurrentStep()
     setStep(s => s + 1)
     window.scrollTo(0, 0)
   }
 
-  function goBack() {
-    saveCurrentStep()
+  async function goBack() {
+    await saveCurrentStep()
     setStep(s => s - 1)
     window.scrollTo(0, 0)
   }
 
-  function handleSubmit() {
-    saveCurrentStep()
-    completeEntryAssessment(pid)
+  async function handleSubmit() {
+    await saveCurrentStep()
+    await completeEntryAssessment(pid)
     navigate(`/thank-you?type=entry&pid=${pid}`)
   }
 
@@ -376,7 +391,6 @@ export default function EntryAssessment() {
             <div className="alert alert--success">
               You've completed all sections. Click Submit to finish enrollment.
             </div>
-
             <div className="alert alert--info">
               Once you submit, your enrollment is complete. You'll receive weekly
               check-in reminders from the research team.

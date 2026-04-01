@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
 import {
   researcherLogin,
@@ -33,17 +33,24 @@ async function copyToClipboard(text) {
 
 // ── Researcher login form ─────────────────────────────────────────────────────
 
-function ResearcherLogin({ onLogin }) {
+function ResearcherLogin() {
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (researcherLogin(password)) {
-      onLogin()
-    } else {
-      setError('Incorrect password. Please try again.')
+    setLoading(true)
+    setError('')
+    try {
+      await researcherLogin(email, password)
+      // onAuthStateChanged in AppContext will update isResearcher automatically
+    } catch {
+      setError('Incorrect email or password. Please try again.')
       setPassword('')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -52,10 +59,23 @@ function ResearcherLogin({ onLogin }) {
       <div style={{ maxWidth: '400px', margin: '0 auto' }}>
         <h1 className="page__title">Researcher access</h1>
         <p className="page__subtitle">
-          Enter your researcher password to access the dashboard.
+          Sign in with your researcher account to access the dashboard.
         </p>
         <div className="card">
           <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label className="form-label" htmlFor="remail">Email</label>
+              <input
+                id="remail"
+                type="email"
+                className="form-input"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoFocus
+                placeholder="researcher@stanford.edu"
+                required
+              />
+            </div>
             <div className="form-group">
               <label className="form-label" htmlFor="rpassword">Password</label>
               <input
@@ -64,19 +84,21 @@ function ResearcherLogin({ onLogin }) {
                 className="form-input"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                autoFocus
-                placeholder="Researcher password"
+                placeholder="••••••••"
+                required
               />
             </div>
-            {error && <div className="alert alert--error">{error}</div>}
-            <button type="submit" className="btn btn--primary" style={{ width: '100%' }}>
-              Sign in
+            {error && <div className="alert alert--error" style={{ marginBottom: '1rem' }}>{error}</div>}
+            <button
+              type="submit"
+              className="btn btn--primary"
+              style={{ width: '100%' }}
+              disabled={loading}
+            >
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
         </div>
-        <p className="text-sm text-muted text-center mt-2">
-          Set via <code>VITE_RESEARCHER_PASSWORD</code> in <code>.env.local</code>.
-        </p>
       </div>
     </div>
   )
@@ -134,13 +156,26 @@ function LinkRow({ label, url }) {
 // ── Participant detail panel ───────────────────────────────────────────────────
 
 function ParticipantDetail({ pid }) {
-  const participant = getParticipant(pid)
-  const links       = makeLinks(pid)
+  const [participant, setParticipant] = useState(null)
+  const [loading, setLoading]         = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    getParticipant(pid).then(p => {
+      setParticipant(p)
+      setLoading(false)
+    })
+  }, [pid])
+
+  if (loading) {
+    return <p className="text-sm text-muted">Loading…</p>
+  }
 
   if (!participant) {
     return <p className="text-sm text-muted">No data found for {pid}.</p>
   }
 
+  const links             = makeLinks(pid)
   const checkins          = participant.weeklyCheckins || []
   const completedCheckins = checkins.filter(c => c.completedAt)
   const avgMultiplicity   = completedCheckins.length > 0
@@ -154,8 +189,8 @@ function ParticipantDetail({ pid }) {
     ? (completedCheckins.reduce((s, c) => s + (c.metrics?.entropy || 0), 0) / completedCheckins.length).toFixed(2)
     : null
 
-  function handleExport() {
-    const csv = exportParticipantCSV(pid)
+  async function handleExport() {
+    const csv = await exportParticipantCSV(pid)
     if (!csv) { alert('No calendar data to export yet.'); return }
     const blob = new Blob([csv], { type: 'text/csv' })
     const url  = URL.createObjectURL(blob)
@@ -336,19 +371,29 @@ function ParticipantDetail({ pid }) {
 // ── Main dashboard ─────────────────────────────────────────────────────────────
 
 function DashboardContent() {
-  const [pids, setPids]             = useState(() => getAllParticipantIds())
-  const [selectedPid, setSelectedPid] = useState(() => getAllParticipantIds()[0] || null)
-  const [newPid, setNewPid]         = useState('')
-  const [addError, setAddError]     = useState('')
+  const [pids, setPids]               = useState([])
+  const [selectedPid, setSelectedPid] = useState(null)
+  const [newPid, setNewPid]           = useState('')
+  const [addError, setAddError]       = useState('')
+  const [loadingPids, setLoadingPids] = useState(true)
 
-  function handleAddParticipant(e) {
+  const refreshPids = useCallback(async () => {
+    const ids = await getAllParticipantIds()
+    setPids(ids)
+    setLoadingPids(false)
+    if (!selectedPid && ids.length > 0) setSelectedPid(ids[0])
+  }, [selectedPid])
+
+  useEffect(() => { refreshPids() }, [refreshPids])
+
+  async function handleAddParticipant(e) {
     e.preventDefault()
     const id = newPid.trim().toUpperCase().replace(/\s+/g, '')
     if (!id) { setAddError('Enter a participant ID.'); return }
     if (pids.includes(id)) { setAddError(`Participant ${id} already exists.`); return }
 
-    createParticipant(id)
-    const updated = getAllParticipantIds()
+    await createParticipant(id)
+    const updated = await getAllParticipantIds()
     setPids(updated)
     setSelectedPid(id)
     setNewPid('')
@@ -361,7 +406,7 @@ function DashboardContent() {
         <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-.02em', color: 'var(--ink-1)' }}>
           Researcher Dashboard
         </h1>
-        <p className="text-muted text-sm">Caremometer — Prototype · Data stored in this browser</p>
+        <p className="text-muted text-sm">Caremometer · Data stored in Firestore</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '1.5rem', alignItems: 'start' }}>
@@ -372,39 +417,30 @@ function DashboardContent() {
             <p style={{ fontSize: '.75rem', fontWeight: 600, color: 'var(--ink-4)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '.75rem' }}>
               Participants
             </p>
-            {pids.length === 0 ? (
+            {loadingPids ? (
+              <p className="text-sm text-muted">Loading…</p>
+            ) : pids.length === 0 ? (
               <p className="text-sm text-muted">No participants yet.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '.25rem' }}>
-                {pids.map(pid => {
-                  const p       = getParticipant(pid)
-                  const enrolled = p?.entryAssessment?.completedAt
-                  return (
-                    <button
-                      key={pid}
-                      type="button"
-                      onClick={() => setSelectedPid(pid)}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        width: '100%', padding: '.4375rem .625rem', border: 'none',
-                        borderRadius: 'var(--radius-sm)', cursor: 'pointer', textAlign: 'left',
-                        background: selectedPid === pid ? 'var(--accent-pale)' : 'transparent',
-                        color: selectedPid === pid ? 'var(--accent-text)' : 'var(--ink-2)',
-                        fontFamily: 'var(--font)', fontSize: '.875rem', fontWeight: selectedPid === pid ? 600 : 400,
-                        transition: 'background .1s',
-                      }}
-                    >
-                      <span>{pid}</span>
-                      <span
-                        style={{
-                          width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-                          background: enrolled ? 'var(--green)' : 'var(--stone-4)',
-                        }}
-                        title={enrolled ? 'Enrolled' : 'Not enrolled'}
-                      />
-                    </button>
-                  )
-                })}
+                {pids.map(pid => (
+                  <button
+                    key={pid}
+                    type="button"
+                    onClick={() => setSelectedPid(pid)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      width: '100%', padding: '.4375rem .625rem', border: 'none',
+                      borderRadius: 'var(--radius-sm)', cursor: 'pointer', textAlign: 'left',
+                      background: selectedPid === pid ? 'var(--accent-pale)' : 'transparent',
+                      color: selectedPid === pid ? 'var(--accent-text)' : 'var(--ink-2)',
+                      fontFamily: 'var(--font)', fontSize: '.875rem', fontWeight: selectedPid === pid ? 600 : 400,
+                      transition: 'background .1s',
+                    }}
+                  >
+                    {pid}
+                  </button>
+                ))}
               </div>
             )}
 
@@ -457,10 +493,18 @@ function DashboardContent() {
 // ── Exported page ──────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { isResearcher, setIsResearcher } = useApp()
+  const { isResearcher, authLoading } = useApp()
+
+  if (authLoading) {
+    return (
+      <div className="container page" style={{ textAlign: 'center', paddingTop: '4rem' }}>
+        <p className="text-muted">Loading…</p>
+      </div>
+    )
+  }
 
   if (!isResearcher) {
-    return <ResearcherLogin onLogin={() => setIsResearcher(true)} />
+    return <ResearcherLogin />
   }
 
   return <DashboardContent />

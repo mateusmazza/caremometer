@@ -1,14 +1,11 @@
 /**
- * Storage abstraction layer — currently backed by localStorage.
+ * Storage abstraction layer — backed by Firestore.
  *
- * All functions are designed to have the same interface as a Qualtrics
- * embedded-data / survey-flow layer would use, making it straightforward
- * to port to Qualtrics or a backend (Firestore, etc.) later.
+ * All functions are async. Participant data is stored in the Firestore
+ * 'participants' collection, keyed by participant ID (pid).
  *
- * Participant data is keyed by a participant ID (pid), so multiple
- * participants can coexist in the same browser (useful for dev / researcher
- * testing). Participant-specific links carry the pid as a URL query
- * parameter: ?pid=P001
+ * The public API surface is identical to the previous localStorage version
+ * so each instrument page works the same way — just with await on every call.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * Public API
@@ -45,77 +42,63 @@
  *   saveExitAssessmentSection(pid, section, data)
  *   completeExitAssessment(pid)
  *
- * Researcher auth
- *   researcherLogin(password)
+ * Researcher auth (Firebase Auth)
+ *   researcherLogin(email, password)
  *   getResearcherAuth()
  *   researcherLogout()
  *
  * Data export
  *   exportParticipantCSV(pid)
  *
- * Week helpers
+ * Week helpers (sync)
  *   getCurrentWeekId()
  *   getPast7Days()
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-// ── Key helpers ────────────────────────────────────────────────────────────────
+import { db, auth } from '../firebase'
+import {
+  doc, getDoc, setDoc, collection, getDocs,
+} from 'firebase/firestore'
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
 
-const PID_LIST_KEY     = 'cpt_pids'
-const RESEARCHER_KEY   = 'cpt_researcher_auth'
+const PARTICIPANTS_COL = 'participants'
 
-function participantKey(pid) {
-  return `cpt_p_${pid}`
+function participantRef(pid) {
+  return doc(db, PARTICIPANTS_COL, pid)
 }
 
 // ── Participant list ───────────────────────────────────────────────────────────
 
-function getParticipantIds() {
-  try {
-    const raw = localStorage.getItem(PID_LIST_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
+export async function getAllParticipantIds() {
+  const snap = await getDocs(collection(db, PARTICIPANTS_COL))
+  return snap.docs.map(d => d.id).sort()
 }
 
-function registerPid(pid) {
-  const ids = getParticipantIds()
-  if (!ids.includes(pid)) {
-    ids.push(pid)
-    localStorage.setItem(PID_LIST_KEY, JSON.stringify(ids))
-  }
-}
-
-export function getAllParticipantIds() {
-  return getParticipantIds()
-}
-
-export function getAllParticipants() {
-  return getParticipantIds().map(pid => getParticipant(pid)).filter(Boolean)
+export async function getAllParticipants() {
+  const snap = await getDocs(collection(db, PARTICIPANTS_COL))
+  return snap.docs.map(d => d.data())
 }
 
 // ── Participant CRUD ───────────────────────────────────────────────────────────
 
-export function getParticipant(pid) {
-  try {
-    const raw = localStorage.getItem(participantKey(pid))
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
+export async function getParticipant(pid) {
+  const snap = await getDoc(participantRef(pid))
+  return snap.exists() ? snap.data() : null
 }
 
-export function saveParticipant(pid, data) {
-  const existing = getParticipant(pid) || {}
+export async function saveParticipant(pid, data) {
+  const ref      = participantRef(pid)
+  const snap     = await getDoc(ref)
+  const existing = snap.exists() ? snap.data() : {}
   const updated  = { ...existing, ...data, updatedAt: new Date().toISOString() }
-  localStorage.setItem(participantKey(pid), JSON.stringify(updated))
-  registerPid(pid)
+  await setDoc(ref, updated)
   return updated
 }
 
-export function generateParticipantId() {
-  const existing = new Set(getParticipantIds())
+export async function generateParticipantId() {
+  const snap     = await getDocs(collection(db, PARTICIPANTS_COL))
+  const existing = new Set(snap.docs.map(d => d.id))
   let n = existing.size + 1
   let candidate
   do {
@@ -125,7 +108,7 @@ export function generateParticipantId() {
   return candidate
 }
 
-export function createParticipant(pid) {
+export async function createParticipant(pid) {
   const participant = {
     id:              pid,
     enrolledAt:      new Date().toISOString(),
@@ -137,14 +120,13 @@ export function createParticipant(pid) {
     exitAssessment:  null,
     weeklyCheckins:  [],
   }
-  localStorage.setItem(participantKey(pid), JSON.stringify(participant))
-  registerPid(pid)
+  await setDoc(participantRef(pid), participant)
   return participant
 }
 
 // ── Consent ────────────────────────────────────────────────────────────────────
 
-export function saveConsent(pid) {
+export async function saveConsent(pid) {
   return saveParticipant(pid, {
     consentGiven:   true,
     consentGivenAt: new Date().toISOString(),
@@ -153,29 +135,29 @@ export function saveConsent(pid) {
 
 // ── Providers ──────────────────────────────────────────────────────────────────
 
-export function saveProviders(pid, providers) {
+export async function saveProviders(pid, providers) {
   return saveParticipant(pid, { providers })
 }
 
 // ── Screener ───────────────────────────────────────────────────────────────────
 
-export function saveScreener(pid, data) {
-  const participant = getParticipant(pid)
+export async function saveScreener(pid, data) {
+  const participant = await getParticipant(pid)
   const existing    = participant?.screener || {}
   const updated     = { ...existing, ...data, lastUpdatedAt: new Date().toISOString() }
   return saveParticipant(pid, { screener: updated })
 }
 
-export function completeScreener(pid) {
-  const participant = getParticipant(pid)
+export async function completeScreener(pid) {
+  const participant = await getParticipant(pid)
   const updated     = { ...participant?.screener, completedAt: new Date().toISOString() }
   return saveParticipant(pid, { screener: updated })
 }
 
 // ── Entry Assessment ───────────────────────────────────────────────────────────
 
-export function saveEntryAssessmentSection(pid, section, data) {
-  const participant = getParticipant(pid)
+export async function saveEntryAssessmentSection(pid, section, data) {
+  const participant = await getParticipant(pid)
   const existing    = participant?.entryAssessment || {}
   const updated     = {
     ...existing,
@@ -185,8 +167,8 @@ export function saveEntryAssessmentSection(pid, section, data) {
   return saveParticipant(pid, { entryAssessment: updated })
 }
 
-export function completeEntryAssessment(pid) {
-  const participant = getParticipant(pid)
+export async function completeEntryAssessment(pid) {
+  const participant = await getParticipant(pid)
   const updated     = {
     ...participant?.entryAssessment,
     completedAt: new Date().toISOString(),
@@ -196,8 +178,8 @@ export function completeEntryAssessment(pid) {
 
 // ── Weekly Check-ins ───────────────────────────────────────────────────────────
 
-export function saveWeeklyCheckin(pid, weekId, data) {
-  const participant = getParticipant(pid)
+export async function saveWeeklyCheckin(pid, weekId, data) {
+  const participant = await getParticipant(pid)
   const checkins    = participant?.weeklyCheckins || []
   const idx         = checkins.findIndex(c => c.id === weekId)
   const checkin     = { id: weekId, ...data, updatedAt: new Date().toISOString() }
@@ -210,8 +192,8 @@ export function saveWeeklyCheckin(pid, weekId, data) {
   return saveParticipant(pid, { weeklyCheckins: checkins })
 }
 
-export function completeWeeklyCheckin(pid, weekId) {
-  const participant = getParticipant(pid)
+export async function completeWeeklyCheckin(pid, weekId) {
+  const participant = await getParticipant(pid)
   const checkins    = participant?.weeklyCheckins || []
   const idx         = checkins.findIndex(c => c.id === weekId)
   if (idx >= 0) {
@@ -220,13 +202,13 @@ export function completeWeeklyCheckin(pid, weekId) {
   }
 }
 
-export function getWeeklyCheckin(pid, weekId) {
-  const participant = getParticipant(pid)
+export async function getWeeklyCheckin(pid, weekId) {
+  const participant = await getParticipant(pid)
   return participant?.weeklyCheckins?.find(c => c.id === weekId) || null
 }
 
-export function getLatestCheckin(pid) {
-  const participant = getParticipant(pid)
+export async function getLatestCheckin(pid) {
+  const participant = await getParticipant(pid)
   const checkins    = participant?.weeklyCheckins || []
   if (checkins.length === 0) return null
   return checkins.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]
@@ -234,8 +216,8 @@ export function getLatestCheckin(pid) {
 
 // ── Exit Assessment ────────────────────────────────────────────────────────────
 
-export function saveExitAssessmentSection(pid, section, data) {
-  const participant = getParticipant(pid)
+export async function saveExitAssessmentSection(pid, section, data) {
+  const participant = await getParticipant(pid)
   const existing    = participant?.exitAssessment || {}
   const updated     = {
     ...existing,
@@ -245,8 +227,8 @@ export function saveExitAssessmentSection(pid, section, data) {
   return saveParticipant(pid, { exitAssessment: updated })
 }
 
-export function completeExitAssessment(pid) {
-  const participant = getParticipant(pid)
+export async function completeExitAssessment(pid) {
+  const participant = await getParticipant(pid)
   const updated     = {
     ...participant?.exitAssessment,
     completedAt: new Date().toISOString(),
@@ -254,43 +236,30 @@ export function completeExitAssessment(pid) {
   return saveParticipant(pid, { exitAssessment: updated, status: 'completed' })
 }
 
-// ── Researcher Auth ────────────────────────────────────────────────────────────
+// ── Researcher Auth (Firebase Auth) ───────────────────────────────────────────
 
-const RESEARCHER_PASSWORD =
-  import.meta.env.VITE_RESEARCHER_PASSWORD || 'precarity-research-2025'
-
-export function researcherLogin(password) {
-  if (password === RESEARCHER_PASSWORD) {
-    const auth = { authenticated: true, authenticatedAt: new Date().toISOString() }
-    localStorage.setItem(RESEARCHER_KEY, JSON.stringify(auth))
-    return true
-  }
-  return false
+export async function researcherLogin(email, password) {
+  return signInWithEmailAndPassword(auth, email, password)
 }
 
 export function getResearcherAuth() {
-  try {
-    const raw = localStorage.getItem(RESEARCHER_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
+  return auth.currentUser
 }
 
-export function researcherLogout() {
-  localStorage.removeItem(RESEARCHER_KEY)
+export async function researcherLogout() {
+  return signOut(auth)
 }
 
 // ── Data Export ────────────────────────────────────────────────────────────────
 
-export function exportParticipantCSV(pid) {
-  const participant = getParticipant(pid)
+export async function exportParticipantCSV(pid) {
+  const participant = await getParticipant(pid)
   if (!participant) return null
 
-  const rows       = []
-  const entry      = participant.entryAssessment || {}
+  const rows         = []
+  const entry        = participant.entryAssessment || {}
   const demographics = entry.demographics || {}
-  const checkins   = participant.weeklyCheckins || []
+  const checkins     = participant.weeklyCheckins || []
 
   for (const checkin of checkins) {
     const calendarData = checkin.calendarData || {}
@@ -298,27 +267,27 @@ export function exportParticipantCSV(pid) {
       for (const [hour, providerId] of Object.entries(hours)) {
         const provider = participant.providers?.find(p => p.id === providerId)
         rows.push({
-          participant_id:      participant.id,
-          enrolled_at:         participant.enrolledAt,
-          child_dob:           demographics.child_dob || '',
-          race_ethnicity:      Array.isArray(demographics.race_ethnicity)
-                                 ? demographics.race_ethnicity.join(';')
-                                 : (demographics.race_ethnicity || ''),
-          household_income:    demographics.household_income || '',
-          urbanicity:          demographics.urbanicity || '',
-          zip_code:            demographics.zip_code || '',
-          employment_status:   demographics.employment_status || '',
-          week_id:             checkin.id,
-          week_start_date:     checkin.weekStartDate || '',
+          participant_id:       participant.id,
+          enrolled_at:          participant.enrolledAt,
+          child_dob:            demographics.child_dob || '',
+          race_ethnicity:       Array.isArray(demographics.race_ethnicity)
+                                  ? demographics.race_ethnicity.join(';')
+                                  : (demographics.race_ethnicity || ''),
+          household_income:     demographics.household_income || '',
+          urbanicity:           demographics.urbanicity || '',
+          zip_code:             demographics.zip_code || '',
+          employment_status:    demographics.employment_status || '',
+          week_id:              checkin.id,
+          week_start_date:      checkin.weekStartDate || '',
           checkin_completed_at: checkin.completedAt || '',
           date,
-          hour:                Number(hour),
-          provider_id:         providerId || '',
-          provider_name:       provider?.name || (providerId ? 'Unknown' : ''),
-          provider_type:       provider?.type || '',
-          multiplicity:        checkin.metrics?.multiplicity ?? '',
-          instability:         checkin.metrics?.instability ?? '',
-          entropy:             checkin.metrics?.entropy ?? '',
+          hour:                 Number(hour),
+          provider_id:          providerId || '',
+          provider_name:        provider?.name || (providerId ? 'Unknown' : ''),
+          provider_type:        provider?.type || '',
+          multiplicity:         checkin.metrics?.multiplicity ?? '',
+          instability:          checkin.metrics?.instability ?? '',
+          entropy:              checkin.metrics?.entropy ?? '',
         })
       }
     }
@@ -337,12 +306,12 @@ export function exportParticipantCSV(pid) {
   return csv
 }
 
-// ── Week helpers ───────────────────────────────────────────────────────────────
+// ── Week helpers (synchronous — no Firestore needed) ──────────────────────────
 
 export function getCurrentWeekId() {
-  const now  = new Date()
-  const day  = now.getDay()
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1)
+  const now    = new Date()
+  const day    = now.getDay()
+  const diff   = now.getDate() - day + (day === 0 ? -6 : 1)
   const monday = new Date(now.setDate(diff))
   return `week_${monday.toISOString().slice(0, 10)}`
 }

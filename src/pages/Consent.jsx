@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   getParticipant, createParticipant, saveConsent,
@@ -9,10 +9,6 @@ import {
  *
  * Expected URL: /consent?pid=P001
  *
- * If no pid is in the URL, shows an error directing the participant to use
- * their personal study link. If consent has already been given, redirects
- * straight to the entry assessment.
- *
  * IRB Protocol: eProtocol #64791 (Stanford University, exempt)
  * PI: Philip Fisher | Student Researcher: Mateus Mazzaferro
  */
@@ -20,7 +16,24 @@ export default function Consent() {
   const navigate = useNavigate()
   const [params]  = useSearchParams()
   const pid       = params.get('pid')
-  const [agreed, setAgreed] = useState(false)
+
+  const [agreed, setAgreed]   = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [ready, setReady]     = useState(false) // participant record exists + not yet consented
+
+  useEffect(() => {
+    if (!pid) { setLoading(false); return }
+
+    getParticipant(pid).then(async p => {
+      if (!p) p = await createParticipant(pid)
+      if (p.consentGiven) {
+        navigate(`/entry?pid=${pid}`)
+        return
+      }
+      setReady(true)
+      setLoading(false)
+    })
+  }, [pid, navigate])
 
   if (!pid) {
     return (
@@ -38,20 +51,18 @@ export default function Consent() {
     )
   }
 
-  // Auto-create participant record on first visit
-  let participant = getParticipant(pid)
-  if (!participant) participant = createParticipant(pid)
-
-  // Already consented — skip ahead
-  if (participant.consentGiven) {
-    navigate(`/entry?pid=${pid}`)
-    return null
+  if (loading || !ready) {
+    return (
+      <div className="container page" style={{ textAlign: 'center', paddingTop: '4rem' }}>
+        <p className="text-muted">Loading…</p>
+      </div>
+    )
   }
 
-  function handleConsent(e) {
+  async function handleConsent(e) {
     e.preventDefault()
     if (!agreed) return
-    saveConsent(pid)
+    await saveConsent(pid)
     navigate(`/entry?pid=${pid}`)
   }
 

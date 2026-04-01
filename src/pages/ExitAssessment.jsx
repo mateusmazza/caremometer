@@ -58,24 +58,33 @@ export default function ExitAssessment() {
   const navigate  = useNavigate()
   const [params]  = useSearchParams()
   const pid       = params.get('pid')
-  const existingParticipant = pid ? getParticipant(pid) : null
-  const existingExit = existingParticipant?.exitAssessment || {}
 
-  const [step, setStep]                       = useState(0)
-  const [currentSituation, setCurrentSituation] = useState(existingExit.currentSituation || {})
-  const [affordability, setAffordability]     = useState(existingExit.affordability || {})
-  const [effort, setEffort]                   = useState(existingExit.effort || {})
-  const [meetsNeeds, setMeetsNeeds]           = useState(existingExit.meetsNeeds || {})
-  const [parentCognition, setParentCognition] = useState(existingExit.parentCognition || {})
-  const [childCognition, setChildCognition]   = useState(existingExit.childCognition || {})
+  const [loading, setLoading]                        = useState(true)
+  const [step, setStep]                              = useState(0)
+  const [currentSituation, setCurrentSituation]     = useState({})
+  const [affordability, setAffordability]            = useState({})
+  const [effort, setEffort]                          = useState({})
+  const [meetsNeeds, setMeetsNeeds]                  = useState({})
+  const [parentCognition, setParentCognition]        = useState({})
+  const [childCognition, setChildCognition]          = useState({})
 
   useEffect(() => {
-    if (!pid) return
+    if (!pid) { setLoading(false); return }
 
-    const p = getParticipant(pid)
-    if (!p) { navigate(`/consent?pid=${pid}`); return }
-    if (!p.entryAssessment?.completedAt) { navigate(`/entry?pid=${pid}`); return }
-  }, [navigate, pid])
+    getParticipant(pid).then(p => {
+      if (!p) { navigate(`/consent?pid=${pid}`); return }
+      if (!p.entryAssessment?.completedAt) { navigate(`/entry?pid=${pid}`); return }
+
+      const exit = p.exitAssessment || {}
+      setCurrentSituation(exit.currentSituation || {})
+      setAffordability(exit.affordability || {})
+      setEffort(exit.effort || {})
+      setMeetsNeeds(exit.meetsNeeds || {})
+      setParentCognition(exit.parentCognition || {})
+      setChildCognition(exit.childCognition || {})
+      setLoading(false)
+    })
+  }, [pid, navigate])
 
   // Guard
   if (!pid) {
@@ -93,24 +102,32 @@ export default function ExitAssessment() {
     )
   }
 
-  function saveCurrentStep() {
+  if (loading) {
+    return (
+      <div className="container page" style={{ textAlign: 'center', paddingTop: '4rem' }}>
+        <p className="text-muted">Loading…</p>
+      </div>
+    )
+  }
+
+  async function saveCurrentStep() {
     switch (step) {
-      case 0: saveExitAssessmentSection(pid, 'currentSituation', currentSituation); break
-      case 1: saveExitAssessmentSection(pid, 'affordability',    affordability);    break
-      case 2: saveExitAssessmentSection(pid, 'effort',           effort);           break
-      case 3: saveExitAssessmentSection(pid, 'meetsNeeds',       meetsNeeds);       break
-      case 4: saveExitAssessmentSection(pid, 'parentCognition',  parentCognition);  break
-      case 5: saveExitAssessmentSection(pid, 'childCognition',   childCognition);   break
+      case 0: await saveExitAssessmentSection(pid, 'currentSituation', currentSituation); break
+      case 1: await saveExitAssessmentSection(pid, 'affordability',    affordability);    break
+      case 2: await saveExitAssessmentSection(pid, 'effort',           effort);           break
+      case 3: await saveExitAssessmentSection(pid, 'meetsNeeds',       meetsNeeds);       break
+      case 4: await saveExitAssessmentSection(pid, 'parentCognition',  parentCognition);  break
+      case 5: await saveExitAssessmentSection(pid, 'childCognition',   childCognition);   break
       default: break
     }
   }
 
-  function goNext()  { saveCurrentStep(); setStep(s => s + 1); window.scrollTo(0, 0) }
-  function goBack()  { saveCurrentStep(); setStep(s => s - 1); window.scrollTo(0, 0) }
+  async function goNext()  { await saveCurrentStep(); setStep(s => s + 1); window.scrollTo(0, 0) }
+  async function goBack()  { await saveCurrentStep(); setStep(s => s - 1); window.scrollTo(0, 0) }
 
-  function handleSubmit() {
-    saveCurrentStep()
-    completeExitAssessment(pid)
+  async function handleSubmit() {
+    await saveCurrentStep()
+    await completeExitAssessment(pid)
     navigate(`/thank-you?type=exit&pid=${pid}`)
   }
 
