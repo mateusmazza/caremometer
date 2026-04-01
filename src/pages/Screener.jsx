@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { screenerQuestions } from '../data/questions'
+import logo from '../assets/caremometer-logo.png'
 import {
   createParticipant,
   generateParticipantId,
@@ -100,6 +101,7 @@ export default function Screener() {
     return (
       <div>
         <div className="hero">
+          <img src={logo} alt="Caremometer" className="hero__logo-img" />
           <p className="hero__eyebrow">Stanford Graduate School of Education</p>
           <h1 className="hero__title">Care<span>mometer</span></h1>
         </div>
@@ -114,8 +116,8 @@ export default function Screener() {
             </p>
             <p style={{ marginTop: '.75rem', fontSize: '.9rem', color: 'var(--ink-3)' }}>
               Eligibility criteria: you must have a child younger than 5, currently be on a
-              childcare waitlist, be 18 or older, and be comfortable completing surveys in English.
-              If your situation changes, you may qualify in the future.
+              childcare waitlist, be 18 or older, live in the United States, and be comfortable
+              completing surveys in English. If your situation changes, you may qualify in the future.
             </p>
             <a
               href="mailto:mmmazzaferro@gmail.com"
@@ -144,6 +146,7 @@ export default function Screener() {
     <div>
       {/* Hero */}
       <div className="hero">
+        <img src={logo} alt="Caremometer" className="hero__logo-img" />
         <p className="hero__eyebrow">Stanford Graduate School of Education</p>
         <h1 className="hero__title">Care<span>mometer</span></h1>
         <p className="hero__subtitle">

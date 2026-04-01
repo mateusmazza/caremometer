@@ -1,18 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { researcherLogout } from '../../utils/storage'
-
-// Minimal wordmark logo — a small "C" glyph mark
-function LogoMark() {
-  return (
-    <div className="header__logo-mark">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <circle cx="7" cy="7" r="5" stroke="white" strokeWidth="2"/>
-        <path d="M10 5.5A3.5 3.5 0 1 0 10 8.5" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </div>
-  )
-}
+import logo from '../../assets/caremometer-logo.png'
 
 export default function Header() {
   const { isResearcher, setIsResearcher } = useApp()
@@ -32,7 +21,7 @@ export default function Header() {
           className="header__logo"
           onClick={e => { e.preventDefault(); navigate('/') }}
         >
-          <LogoMark />
+          <img src={logo} alt="Caremometer" style={{ height: '28px', width: 'auto' }} />
           <span className="header__logo-text">Caremometer</span>
         </a>
 

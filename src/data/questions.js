@@ -95,6 +95,16 @@ export const screenerQuestions = [
       { value: 'no',  label: 'No' },
     ],
   },
+  {
+    id: 'lives_in_us',
+    label: 'Do you currently live in the United States?',
+    type: 'single',
+    required: true,
+    options: [
+      { value: 'yes', label: 'Yes' },
+      { value: 'no',  label: 'No' },
+    ],
+  },
 ]
 
 // ── DEMOGRAPHICS ──────────────────────────────────────────────────────────────

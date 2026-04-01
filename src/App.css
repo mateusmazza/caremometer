@@ -350,23 +350,29 @@ code { font-family: var(--font-mono); font-size: .875em; background: var(--stone
 
 /* ── Hero / Banner ────────────────────────────────────────────────────────── */
 .hero {
-  background: var(--ink-1);
+  background: linear-gradient(150deg, #1a4a7a 0%, #0e7c7b 60%, #f4a236 100%);
   color: #fff;
   padding: 5rem 1.5rem 4.5rem;
   text-align: center;
 }
+.hero__logo-img {
+  height: 80px;
+  width: auto;
+  margin-bottom: 1.25rem;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.25));
+}
 .hero__eyebrow {
   font-size: .75rem; font-weight: 600; letter-spacing: .1em;
-  text-transform: uppercase; color: rgba(255,255,255,.45);
-  margin-bottom: 1rem;
+  text-transform: uppercase; color: rgba(255,255,255,.6);
+  margin-bottom: .75rem;
 }
 .hero__title {
-  font-size: 2.75rem; font-weight: 700;
+  font-size: 2.75rem; font-weight: 800;
   letter-spacing: -.035em; margin-bottom: 1rem; line-height: 1.1;
 }
-.hero__title span { color: #93C5FD; }
+.hero__title span { color: #fcd34d; }
 .hero__subtitle {
-  font-size: 1.0625rem; color: rgba(255,255,255,.65);
+  font-size: 1.0625rem; color: rgba(255,255,255,.8);
   max-width: 520px; margin: 0 auto 2.5rem; line-height: 1.65;
 }
 .hero__actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
